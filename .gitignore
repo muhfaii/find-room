@@ -1,0 +1,7 @@
+node_modules/
+data/output/*.csv
+data/known-listings/*.json
+data/logs/*.log
+data/cron-logs/*.log
+data/dom-snapshots/
+dist/
