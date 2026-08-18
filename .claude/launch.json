@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "chat-worker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "workers/chat"],
+      "port": 8787
+    },
+    {
+      "name": "chat-static",
+      "url": "http://localhost:8899",
+      "port": 8899
+    }
+  ]
+}

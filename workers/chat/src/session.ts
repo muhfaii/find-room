@@ -105,7 +105,9 @@ export class ChatSession {
 
   // One chat turn: run the OpenAI tool-calling loop (bounded), persist state,
   // and return the final reply + the listings surfaced by any search tool.
-  private async runChatTurn(message: string): Promise<{ reply: string; listings: ListingHit[] }> {
+  private async runChatTurn(
+    message: string,
+  ): Promise<{ reply: string; listings: ListingHit[]; filters: SessionFilters }> {
     const data = await this.load();
 
     const history: ChatMessage[] = data.messages.map((m) => ({
@@ -151,7 +153,7 @@ export class ChatSession {
 
       const reply = assistantMessage.content ?? "";
       await this.commitConversation(conversation);
-      return { reply, listings };
+      return { reply, listings, filters: data.filters };
     }
 
     // Iteration cap reached — return the last assistant text if one exists.
@@ -159,7 +161,7 @@ export class ChatSession {
       [...conversation].reverse().find((m) => m.role === "assistant" && m.content)?.content ??
       "Maaf, jawaban saya belum selesai — coba tanya lagi ya.";
     await this.commitConversation(conversation);
-    return { reply: fallback, listings };
+    return { reply: fallback, listings, filters: data.filters };
   }
 
   private async commitConversation(conversation: ChatMessage[]): Promise<void> {
