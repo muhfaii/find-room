@@ -3,7 +3,7 @@ import type { Env } from "./index.js";
 // Minimal OpenAI chat-completions client via direct fetch — no SDK dependency,
 // keeps the bundle small. Model is a config constant so it's easy to swap later.
 
-export const OPENAI_MODEL = "gpt-4.1-mini";
+export const OPENAI_MODEL = "gpt-5.6-luna";
 
 export interface ChatToolCall {
   id: string;

@@ -4,23 +4,70 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cari Kost Jakarta — Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --bg: #f5f4f0;
-        --panel: #ffffff;
-        --text: #1c1c1a;
-        --muted: #6b6a66;
-        --accent: #0f766e;
-        --accent-dark: #115e59;
-        --border: #e2e0da;
+        /* Light palette — this is a product/app surface (frontend), not the
+           dark-only marketing site, so it uses the light token set. */
+        --surface-0: #efefec;
+        --surface-1: #e8e8e4;
+        --surface-2: #dddcd8;
+        --surface-3: #d4d4d0;
+        --surface-4: #c8c8c4;
+        --border: #d4d4d0;
+        --border-subtle: #dddcd8;
+        --text-primary: #1b1b1b;
+        --text-secondary: #555555;
+        --text-muted: #999999;
+        --accent: #c4892a;
+        --accent-hover: #ad7a26;
+        --accent-tint: rgba(196, 137, 42, 0.1);
+        --success: #4ade80;
+        --danger: #e85454;
+        --warning: #facc15;
+
+        --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --fs-xl: 1.25rem;
+        --fs-lg: 1.125rem;
+        --fs-base: 1rem;
+        --fs-sm: 0.875rem;
+        --fs-xs: 0.75rem;
+
+        --icon-sm: 14px;
+        --icon-md: 16px;
+        --icon-lg: 20px;
+        --icon-xl: 28px;
       }
       * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: var(--bg);
-        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: var(--fs-base);
+        line-height: 1.5;
+        background: var(--surface-0);
+        color: var(--text-primary);
       }
+      .icon {
+        width: var(--icon-md);
+        height: var(--icon-md);
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+        vertical-align: -3px;
+      }
+      .icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+      .icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
+      .icon-xl { width: var(--icon-xl); height: var(--icon-xl); }
+      .icon-star { fill: currentColor; stroke: none; }
       .app {
         max-width: 720px;
         margin: 0 auto;
@@ -30,18 +77,170 @@
       }
       header {
         padding: 16px 20px;
-        border-bottom: 1px solid var(--border);
-        background: var(--panel);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--surface-1);
       }
       header h1 {
         margin: 0;
-        font-size: 18px;
+        font-size: var(--fs-xl);
+        font-weight: 700;
+        letter-spacing: -0.01em;
       }
       header p {
         margin: 2px 0 0;
-        font-size: 13px;
-        color: var(--muted);
+        font-size: var(--fs-sm);
+        color: var(--text-secondary);
       }
+
+      /* ---- Onboarding wizard: full card-form steps, not chips ---- */
+      #onboarding {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 20px;
+      }
+      .progress-dots {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 20px;
+      }
+      .progress-dots span {
+        height: 6px;
+        flex: 1;
+        border-radius: 999px;
+        background: var(--surface-3);
+      }
+      .progress-dots span.done { background: var(--accent); }
+      .progress-dots span.current { background: var(--accent); opacity: 0.5; }
+
+      .step-eyebrow {
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin: 0 0 4px;
+      }
+      .step-title {
+        font-size: var(--fs-xl);
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin: 0 0 6px;
+      }
+      .step-subtitle {
+        font-size: var(--fs-sm);
+        color: var(--text-secondary);
+        margin: 0 0 18px;
+      }
+
+      .option-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .option-grid.single-col { grid-template-columns: 1fr; }
+      .option-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px;
+        min-height: 44px;
+        border: 1.5px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-1);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+      }
+      .option-card .icon { color: var(--text-muted); }
+      .option-card .option-label { flex: 1; }
+      .option-card .option-hint {
+        display: block;
+        font-size: var(--fs-xs);
+        font-weight: 400;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+      .option-card.selected {
+        border-color: var(--accent);
+        background: var(--accent-tint);
+      }
+      .option-card.selected .icon { color: var(--accent); }
+
+      .step-input {
+        width: 100%;
+        padding: 13px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        font-family: inherit;
+        font-size: var(--fs-base);
+        margin-top: 12px;
+        outline: none;
+      }
+      .step-input:focus { border-color: var(--accent); }
+
+      .step-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 24px;
+      }
+      .step-actions .text-link {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 4px;
+      }
+      .step-primary {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 22px;
+        border: none;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .step-primary:hover { background: var(--accent-hover); }
+      .step-primary:disabled { opacity: 0.4; cursor: default; }
+
+      /* ---- Active filter summary (shown once in chat mode) ---- */
+      .active-filters {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 20px;
+        font-size: var(--fs-sm);
+        color: var(--text-secondary);
+        background: var(--surface-1);
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .active-filters button {
+        background: none;
+        border: none;
+        color: var(--accent);
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px;
+      }
+
       #messages {
         flex: 1;
         overflow-y: auto;
@@ -54,8 +253,8 @@
         max-width: 80%;
         padding: 10px 14px;
         border-radius: 14px;
-        line-height: 1.45;
-        font-size: 14px;
+        line-height: 1.5;
+        font-size: var(--fs-base);
         white-space: pre-wrap;
         word-break: break-word;
       }
@@ -67,68 +266,262 @@
       }
       .assistant {
         align-self: flex-start;
-        background: var(--panel);
-        border: 1px solid var(--border);
+        background: var(--surface-1);
+        border: 1px solid var(--border-subtle);
         border-bottom-left-radius: 4px;
       }
+
+      /* Typing indicator */
+      .typing {
+        align-self: flex-start;
+        display: flex;
+        gap: 4px;
+        padding: 12px 16px;
+        background: var(--surface-1);
+        border: 1px solid var(--border-subtle);
+        border-radius: 14px;
+        border-bottom-left-radius: 4px;
+      }
+      .typing span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--text-muted);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .typing span {
+          animation: typing-pulse 1.1s infinite ease-in-out;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.15s; }
+        .typing span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes typing-pulse {
+          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+          30% { opacity: 1; transform: translateY(-2px); }
+        }
+      }
+
+      /* Listing card */
       .listing {
         align-self: flex-start;
         width: 100%;
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 10px;
+        display: flex;
+        gap: 12px;
+        background: var(--surface-1);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
         padding: 12px 14px;
-        font-size: 13px;
+        font-size: var(--fs-sm);
       }
       .listing + .listing { margin-top: -6px; }
+      .listing-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        object-fit: cover;
+        background: var(--surface-3);
+      }
+      .listing-thumb-fallback {
+        width: 56px;
+        height: 56px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        background: var(--surface-3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+      }
+      .listing-body { min-width: 0; flex: 1; }
       .listing .title { font-weight: 600; margin-bottom: 2px; }
-      .listing .meta { color: var(--muted); }
-      .listing a {
-        color: var(--accent-dark);
+      .listing .meta { color: var(--text-secondary); }
+      .listing .rating {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+        color: var(--text-secondary);
+        font-size: var(--fs-xs);
+      }
+      .listing .rating .icon-star { color: var(--accent); }
+      .listing .facilities {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        margin-top: 6px;
+      }
+      .facility-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-muted);
+        font-size: var(--fs-xs);
+      }
+      .listing-actions {
+        display: flex;
+        gap: 14px;
+        margin-top: 8px;
+      }
+      .listing-actions a,
+      .listing-actions button {
+        display: inline-flex;
+        align-items: center;
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--accent);
+        font-family: inherit;
         text-decoration: none;
         font-weight: 600;
+        font-size: var(--fs-sm);
+        cursor: pointer;
       }
-      .listing a:hover { text-decoration: underline; }
+      .listing-actions a:hover,
+      .listing-actions button:hover { color: var(--accent-hover); }
+
+      /* Empty-state card */
+      .empty-state {
+        align-self: flex-start;
+        width: 100%;
+        background: var(--surface-1);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .empty-state p { margin: 0 0 10px; font-size: var(--fs-base); }
+      .empty-state-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .empty-state-actions button {
+        padding: 9px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-0);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        cursor: pointer;
+      }
+
       form {
         display: flex;
         gap: 10px;
         padding: 14px 20px;
-        border-top: 1px solid var(--border);
-        background: var(--panel);
+        border-top: 1px solid var(--border-subtle);
+        background: var(--surface-1);
       }
-      input {
+      form[hidden] { display: none; }
+      input#input {
         flex: 1;
         padding: 10px 14px;
         border: 1px solid var(--border);
         border-radius: 999px;
-        font-size: 14px;
+        font-family: inherit;
+        font-size: var(--fs-base);
         outline: none;
+        background: var(--surface-0);
+        color: var(--text-primary);
       }
-      input:focus { border-color: var(--accent); }
-      button {
+      input#input:focus { border-color: var(--accent); }
+      #send {
         padding: 10px 18px;
         border: none;
         border-radius: 999px;
         background: var(--accent);
         color: #fff;
-        font-size: 14px;
+        font-family: inherit;
+        font-size: var(--fs-sm);
         font-weight: 600;
         cursor: pointer;
       }
-      button:hover { background: var(--accent-dark); }
-      button:disabled { opacity: 0.6; cursor: default; }
-      .err { color: #b91c1c; font-size: 13px; padding: 0 20px 8px; }
+      #send:hover { background: var(--accent-hover); }
+      #send:disabled { opacity: 0.5; cursor: default; }
+      .err { color: var(--danger); font-size: var(--fs-sm); padding: 0 20px 8px; }
     </style>
   </head>
   <body>
+    <!-- Inline icon sprite: one consistent outline set (Lucide-style, 24x24,
+         1.5px stroke). Referenced via <use href="#icon-NAME">. Never emoji. -->
+    <svg style="display: none">
+      <symbol id="icon-star" viewBox="0 0 24 24">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </symbol>
+      <symbol id="icon-wallet" viewBox="0 0 24 24">
+        <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1" />
+        <path d="M18 12a2 2 0 0 0 0 4h3v-4z" />
+      </symbol>
+      <symbol id="icon-map-pin" viewBox="0 0 24 24">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+      </symbol>
+      <symbol id="icon-users" viewBox="0 0 24 24">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </symbol>
+      <symbol id="icon-sliders" viewBox="0 0 24 24">
+        <line x1="21" y1="4" x2="14" y2="4" />
+        <line x1="10" y1="4" x2="3" y2="4" />
+        <line x1="21" y1="12" x2="12" y2="12" />
+        <line x1="8" y1="12" x2="3" y2="12" />
+        <line x1="21" y1="20" x2="16" y2="20" />
+        <line x1="12" y1="20" x2="3" y2="20" />
+        <line x1="14" y1="2" x2="14" y2="6" />
+        <line x1="8" y1="10" x2="8" y2="14" />
+        <line x1="16" y1="18" x2="16" y2="22" />
+      </symbol>
+      <symbol id="icon-wind" viewBox="0 0 24 24">
+        <path d="M9.59 4.59A2 2 0 1 1 11 8H2" />
+        <path d="M12.59 11.59A2 2 0 1 1 14 15H2" />
+        <path d="M17.73 7.73A2.5 2.5 0 1 1 19.5 12H2" />
+      </symbol>
+      <symbol id="icon-wifi" viewBox="0 0 24 24">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </symbol>
+      <symbol id="icon-droplet" viewBox="0 0 24 24">
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      </symbol>
+      <symbol id="icon-car" viewBox="0 0 24 24">
+        <path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11" />
+        <rect x="3" y="11" width="18" height="7" rx="2" />
+        <circle cx="7.5" cy="18" r="1.5" />
+        <circle cx="16.5" cy="18" r="1.5" />
+      </symbol>
+      <symbol id="icon-washing-machine" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="12" cy="13" r="5" />
+        <circle cx="7" cy="6" r="1" />
+        <circle cx="10" cy="6" r="1" />
+      </symbol>
+      <symbol id="icon-home" viewBox="0 0 24 24">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
+      </symbol>
+      <symbol id="icon-message-circle" viewBox="0 0 24 24">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      </symbol>
+      <symbol id="icon-arrow-right" viewBox="0 0 24 24">
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="12 5 19 12 12 19" />
+      </symbol>
+      <symbol id="icon-chevron-left" viewBox="0 0 24 24">
+        <polyline points="15 18 9 12 15 6" />
+      </symbol>
+    </svg>
+
     <div class="app">
       <header>
         <h1>Cari Kost Jakarta</h1>
-        <p>Kost apa yang sedang kamu cari?</p>
+        <p id="subtitle">Kost apa yang sedang kamu cari?</p>
       </header>
-      <div id="messages"></div>
-      <p id="error" class="err"></p>
-      <form id="form">
+
+      <div id="onboarding"></div>
+      <div id="activeFilters" class="active-filters" hidden></div>
+      <div id="messages" aria-live="polite" hidden></div>
+      <p id="error" class="err" role="alert"></p>
+      <form id="form" hidden>
         <input
           id="input"
           type="text"
@@ -146,6 +539,41 @@
       const sendBtn = document.getElementById("send");
       const messagesEl = document.getElementById("messages");
       const errorEl = document.getElementById("error");
+      const activeFiltersEl = document.getElementById("activeFilters");
+      const onboardingEl = document.getElementById("onboarding");
+
+      // Facility tag -> {icon, label}. Tags without an icon here still get a
+      // text-only badge on the card (never silently dropped).
+      const FACILITY_META = {
+        ac: { icon: "wind", label: "AC" },
+        wifi: { icon: "wifi", label: "Wi-Fi" },
+        private_bathroom: { icon: "droplet", label: "K. mandi dalam" },
+        shared_bathroom: { icon: null, label: "K. mandi luar" },
+        parking: { icon: "car", label: "Parkir" },
+        laundry: { icon: "washing-machine", label: "Laundry" },
+        kitchen_access: { icon: null, label: "Akses dapur" },
+        tv: { icon: null, label: "TV" },
+        wardrobe: { icon: null, label: "Lemari" },
+        desk: { icon: null, label: "Meja" },
+        water_heater: { icon: null, label: "Air panas" },
+      };
+      const FACILITY_STEP_TAGS = ["ac", "wifi", "private_bathroom", "parking", "laundry", "water_heater"];
+
+      const GENDER_META = {
+        female_only: { label: "Khusus putri", icon: "users" },
+        male_only: { label: "Khusus putra", icon: "users" },
+        mixed: { label: "Campur, tidak masalah", icon: "users" },
+      };
+
+      const BUDGET_RANGES = [
+        { id: "b1", label: "< Rp 1 juta", max: 1000000 },
+        { id: "b2", label: "Rp 1 – 1,5 juta", min: 1000000, max: 1500000 },
+        { id: "b3", label: "Rp 1,5 – 2 juta", min: 1500000, max: 2000000 },
+        { id: "b4", label: "Rp 2 – 3 juta", min: 2000000, max: 3000000 },
+        { id: "b5", label: "> Rp 3 juta", min: 3000000 },
+      ];
+
+      const AREA_PICKS = ["Margonda / deket UI", "Depok", "Jakarta Selatan", "Menteng, Jakarta Pusat"];
 
       function sessionId() {
         let id = localStorage.getItem(SESSION_KEY);
@@ -156,12 +584,258 @@
         return id;
       }
 
+      function rupiah(amount) {
+        return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(
+          amount,
+        );
+      }
+
       function formatPrice(amount, period) {
         if (typeof amount !== "number") return "Harga tidak disebutkan";
-        const rp = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
         const labels = { monthly: "/bulan", daily: "/hari", weekly: "/minggu", yearly: "/tahun" };
-        return `${rp.format(amount)}${period && labels[period] ? labels[period] : ""}`;
+        return `${rupiah(amount)}${period && labels[period] ? labels[period] : ""}`;
       }
+
+      // ============================================================
+      // Onboarding wizard — the "ask upfront" step of the journey.
+      // Big tappable cards (never tiny chips) so choices read clearly
+      // on a phone screen. Ends by composing one structured message
+      // and auto-sending it into the normal chat flow.
+      // ============================================================
+
+      const wizard = {
+        step: 0,
+        budget: null, // BUDGET_RANGES entry
+        area: "",
+        gender: null, // key of GENDER_META
+        facilities: [], // tag[]
+      };
+
+      const STEPS = ["budget", "area", "gender", "facilities"];
+
+      function renderProgressDots() {
+        const dots = STEPS.map((_, i) => {
+          const cls = i < wizard.step ? "done" : i === wizard.step ? "current" : "";
+          return `<span class="${cls}"></span>`;
+        }).join("");
+        return `<div class="progress-dots">${dots}</div>`;
+      }
+
+      function optionCardHtml({ selected, icon, label, hint, dataset }) {
+        const attrs = Object.entries(dataset)
+          .map(([k, v]) => `data-${k}="${v}"`)
+          .join(" ");
+        const iconHtml = icon ? `<svg class="icon icon-lg"><use href="#icon-${icon}" /></svg>` : "";
+        const hintHtml = hint ? `<span class="option-hint">${hint}</span>` : "";
+        return `<button type="button" class="option-card${selected ? " selected" : ""}" ${attrs}>
+          ${iconHtml}
+          <span class="option-label">${label}${hintHtml}</span>
+        </button>`;
+      }
+
+      function renderWizard() {
+        const step = STEPS[wizard.step];
+        onboardingEl.innerHTML = renderProgressDots() + renderStepBody(step);
+        wireStepEvents(step);
+      }
+
+      function renderStepBody(step) {
+        if (step === "budget") {
+          const cards = BUDGET_RANGES.map((r) =>
+            optionCardHtml({
+              selected: wizard.budget?.id === r.id,
+              icon: "wallet",
+              label: r.label,
+              dataset: { budget: r.id },
+            }),
+          ).join("");
+          return `
+            <p class="step-eyebrow">Langkah 1 dari 4</p>
+            <h2 class="step-title">Berapa budget bulananmu?</h2>
+            <p class="step-subtitle">Pilih kisaran yang paling pas, nanti bisa diubah lagi kok.</p>
+            <div class="option-grid single-col">${cards}</div>
+            <div class="step-actions">
+              <span></span>
+              <button type="button" class="step-primary" id="stepNext" ${wizard.budget ? "" : "disabled"}>
+                Lanjut <svg class="icon"><use href="#icon-arrow-right" /></svg>
+              </button>
+            </div>`;
+        }
+
+        if (step === "area") {
+          const cards = AREA_PICKS.map((a) =>
+            optionCardHtml({
+              selected: wizard.area === a,
+              icon: "map-pin",
+              label: a,
+              dataset: { area: a },
+            }),
+          ).join("");
+          return `
+            <p class="step-eyebrow">Langkah 2 dari 4</p>
+            <h2 class="step-title">Mau cari kost di mana?</h2>
+            <p class="step-subtitle">Pilih area populer, atau ketik sendiri di bawah.</p>
+            <div class="option-grid">${cards}</div>
+            <input type="text" id="areaInput" class="step-input" placeholder="Ketik area atau nama kampus..." value="${wizard.area ?? ""}" />
+            <div class="step-actions">
+              <button type="button" class="text-link" id="stepBack">
+                <svg class="icon"><use href="#icon-chevron-left" /></svg> Kembali
+              </button>
+              <button type="button" class="step-primary" id="stepNext" ${wizard.area ? "" : "disabled"}>
+                Lanjut <svg class="icon"><use href="#icon-arrow-right" /></svg>
+              </button>
+            </div>`;
+        }
+
+        if (step === "gender") {
+          const cards = Object.entries(GENDER_META)
+            .map(([key, meta]) =>
+              optionCardHtml({
+                selected: wizard.gender === key,
+                icon: meta.icon,
+                label: meta.label,
+                dataset: { gender: key },
+              }),
+            )
+            .join("");
+          return `
+            <p class="step-eyebrow">Langkah 3 dari 4</p>
+            <h2 class="step-title">Khusus putra, putri, atau campur?</h2>
+            <p class="step-subtitle">Supaya kost yang muncul sesuai aturan penghuninya.</p>
+            <div class="option-grid single-col">${cards}</div>
+            <div class="step-actions">
+              <button type="button" class="text-link" id="stepBack">
+                <svg class="icon"><use href="#icon-chevron-left" /></svg> Kembali
+              </button>
+              <button type="button" class="step-primary" id="stepNext" ${wizard.gender ? "" : "disabled"}>
+                Lanjut <svg class="icon"><use href="#icon-arrow-right" /></svg>
+              </button>
+            </div>`;
+        }
+
+        // facilities — optional, last step
+        const cards = FACILITY_STEP_TAGS.map((tag) => {
+          const meta = FACILITY_META[tag];
+          return optionCardHtml({
+            selected: wizard.facilities.includes(tag),
+            icon: meta.icon,
+            label: meta.label,
+            dataset: { facility: tag },
+          });
+        }).join("");
+        return `
+          <p class="step-eyebrow">Langkah 4 dari 4</p>
+          <h2 class="step-title">Fasilitas yang kamu butuhkan?</h2>
+          <p class="step-subtitle">Opsional — pilih sebanyak yang kamu mau, atau lewati saja.</p>
+          <div class="option-grid">${cards}</div>
+          <div class="step-actions">
+            <button type="button" class="text-link" id="stepBack">
+              <svg class="icon"><use href="#icon-chevron-left" /></svg> Kembali
+            </button>
+            <button type="button" class="step-primary" id="stepNext">
+              Cari kost <svg class="icon"><use href="#icon-arrow-right" /></svg>
+            </button>
+          </div>`;
+      }
+
+      function wireStepEvents(step) {
+        onboardingEl.querySelectorAll(".option-card").forEach((card) => {
+          card.addEventListener("click", () => {
+            if (step === "budget") {
+              wizard.budget = BUDGET_RANGES.find((r) => r.id === card.dataset.budget);
+            } else if (step === "area") {
+              wizard.area = card.dataset.area;
+              const areaInput = document.getElementById("areaInput");
+              if (areaInput) areaInput.value = wizard.area;
+            } else if (step === "gender") {
+              wizard.gender = card.dataset.gender;
+            } else if (step === "facilities") {
+              const tag = card.dataset.facility;
+              wizard.facilities = wizard.facilities.includes(tag)
+                ? wizard.facilities.filter((t) => t !== tag)
+                : [...wizard.facilities, tag];
+            }
+            renderWizard();
+          });
+        });
+
+        const areaInput = document.getElementById("areaInput");
+        if (areaInput) {
+          areaInput.addEventListener("input", () => {
+            wizard.area = areaInput.value.trim();
+            document.getElementById("stepNext").disabled = !wizard.area;
+          });
+        }
+
+        document.getElementById("stepBack")?.addEventListener("click", () => {
+          wizard.step = Math.max(0, wizard.step - 1);
+          renderWizard();
+        });
+
+        document.getElementById("stepNext")?.addEventListener("click", () => {
+          if (step === "facilities") {
+            finishWizard();
+          } else {
+            wizard.step = Math.min(STEPS.length - 1, wizard.step + 1);
+            renderWizard();
+          }
+        });
+      }
+
+      function composeWizardMessage() {
+        const parts = [];
+        if (wizard.area) parts.push(`cari kost di ${wizard.area}`);
+        else parts.push("cari kost");
+        if (wizard.gender) parts.push(GENDER_META[wizard.gender].label.toLowerCase());
+        if (wizard.budget) {
+          if (wizard.budget.max && wizard.budget.min) parts.push(`budget Rp${wizard.budget.min}-${wizard.budget.max}`);
+          else if (wizard.budget.max) parts.push(`budget maksimal Rp${wizard.budget.max}`);
+          else if (wizard.budget.min) parts.push(`budget minimal Rp${wizard.budget.min}`);
+        }
+        if (wizard.facilities.length > 0) {
+          const labels = wizard.facilities.map((t) => FACILITY_META[t].label);
+          parts.push(`dengan fasilitas ${labels.join(", ")}`);
+        }
+        return parts.join(", ");
+      }
+
+      function finishWizard() {
+        onboardingEl.hidden = true;
+        messagesEl.hidden = false;
+        form.hidden = false;
+        void send(composeWizardMessage());
+      }
+
+      // Re-opens the wizard (pre-filled from current session filters) so the
+      // user can revise their earlier picks — same component, no separate UI.
+      function reopenWizard(filters) {
+        if (filters) {
+          if (typeof filters.priceMin === "number" || typeof filters.priceMax === "number") {
+            wizard.budget =
+              BUDGET_RANGES.find((r) => r.min === filters.priceMin && r.max === filters.priceMax) ?? {
+                id: "custom",
+                label: "Custom",
+                min: filters.priceMin,
+                max: filters.priceMax,
+              };
+          }
+          if (filters.area) wizard.area = filters.area;
+          if (filters.gender) wizard.gender = filters.gender;
+          if (Array.isArray(filters.facilities)) wizard.facilities = filters.facilities;
+        }
+        wizard.step = 0;
+        messagesEl.hidden = true;
+        form.hidden = true;
+        activeFiltersEl.hidden = true;
+        onboardingEl.hidden = false;
+        renderWizard();
+      }
+
+      renderWizard();
+
+      // ============================================================
+      // Chat mode (after onboarding, and for all follow-up turns)
+      // ============================================================
 
       function addBubble(text, role) {
         const el = document.createElement("div");
@@ -169,6 +843,20 @@
         el.textContent = text;
         messagesEl.appendChild(el);
         messagesEl.scrollTop = messagesEl.scrollHeight;
+        return el;
+      }
+
+      function showTyping() {
+        const el = document.createElement("div");
+        el.className = "typing";
+        el.id = "typingIndicator";
+        el.innerHTML = "<span></span><span></span><span></span>";
+        messagesEl.appendChild(el);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function hideTyping() {
+        document.getElementById("typingIndicator")?.remove();
       }
 
       // Only ever render http(s) links. `url` ultimately comes from scraped data
@@ -183,16 +871,71 @@
         }
       }
 
+      function buildFacilityBadge(tag) {
+        const meta = FACILITY_META[tag];
+        const label = meta ? meta.label : tag;
+        const span = document.createElement("span");
+        span.className = "facility-badge";
+        if (meta?.icon) {
+          span.innerHTML = `<svg class="icon icon-sm"><use href="#icon-${meta.icon}" /></svg>`;
+        }
+        span.append(label);
+        return span;
+      }
+
       function addListings(listings) {
         for (const l of listings || []) {
-          const el = document.createElement("div");
-          el.className = "listing";
-          el.innerHTML =
-            `<div class="title"></div>` +
-            `<div class="meta"></div>`;
-          el.querySelector(".title").textContent = l.title;
-          const parts = [formatPrice(l.price_amount, l.price_period), l.area_raw].filter(Boolean).join(" · ");
-          el.querySelector(".meta").textContent = parts;
+          const card = document.createElement("div");
+          card.className = "listing";
+
+          const safeImg = l.image_url ? safeHttpUrl(l.image_url) : null;
+          if (safeImg) {
+            const img = document.createElement("img");
+            img.className = "listing-thumb";
+            img.src = safeImg;
+            img.alt = "";
+            card.appendChild(img);
+          } else {
+            const fallback = document.createElement("div");
+            fallback.className = "listing-thumb-fallback";
+            fallback.innerHTML = `<svg class="icon icon-lg"><use href="#icon-home" /></svg>`;
+            card.appendChild(fallback);
+          }
+
+          const body = document.createElement("div");
+          body.className = "listing-body";
+
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = l.title;
+          body.appendChild(title);
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = [formatPrice(l.price_amount, l.price_period), l.area_raw].filter(Boolean).join(" · ");
+          body.appendChild(meta);
+
+          if (typeof l.rating === "number") {
+            const rating = document.createElement("div");
+            rating.className = "rating";
+            const reviewText = typeof l.review_count === "number" ? ` (${l.review_count} ulasan)` : "";
+            rating.innerHTML = `<svg class="icon icon-sm icon-star"><use href="#icon-star" /></svg>`;
+            rating.append(`${l.rating.toFixed(1)}${reviewText}`);
+            body.appendChild(rating);
+          }
+
+          if (Array.isArray(l.facilities) && l.facilities.length > 0) {
+            const facilities = document.createElement("div");
+            facilities.className = "facilities";
+            for (const tag of l.facilities.slice(0, 3)) {
+              facilities.appendChild(buildFacilityBadge(tag));
+            }
+            body.appendChild(facilities);
+          }
+
+          const actions = document.createElement("div");
+          actions.className = "listing-actions";
+
           const safeUrl = safeHttpUrl(l.url);
           if (safeUrl) {
             const link = document.createElement("a");
@@ -200,17 +943,84 @@
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             link.textContent = "Lihat listing";
-            el.appendChild(link);
+            actions.appendChild(link);
           }
-          messagesEl.appendChild(el);
+
+          // "Asking about property details" step of the journey — drills
+          // straight into a chat turn about this specific listing.
+          const askBtn = document.createElement("button");
+          askBtn.type = "button";
+          askBtn.innerHTML = `<svg class="icon icon-sm"><use href="#icon-message-circle" /></svg>&nbsp;Tanya detail`;
+          askBtn.addEventListener("click", () => {
+            void send(`ceritakan lebih detail soal "${l.title}"`);
+          });
+          actions.appendChild(askBtn);
+
+          body.appendChild(actions);
+          card.appendChild(body);
+          messagesEl.appendChild(card);
         }
         messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function addEmptyState() {
+        const card = document.createElement("div");
+        card.className = "empty-state";
+        const p = document.createElement("p");
+        p.textContent = "Belum ada kost yang cocok persis. Coba naikkan budget atau cari area lain.";
+        card.appendChild(p);
+
+        const actions = document.createElement("div");
+        actions.className = "empty-state-actions";
+
+        const raiseBudget = document.createElement("button");
+        raiseBudget.type = "button";
+        raiseBudget.textContent = "Naikkan budget";
+        raiseBudget.addEventListener("click", () => void send("naikkan budget jadi 2 juta"));
+
+        const otherArea = document.createElement("button");
+        otherArea.type = "button";
+        otherArea.textContent = "Cari area lain";
+        otherArea.addEventListener("click", () => void send("coba cari di area lain"));
+
+        actions.append(raiseBudget, otherArea);
+        card.appendChild(actions);
+        messagesEl.appendChild(card);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function renderActiveFilters(filters) {
+        if (!filters || typeof filters !== "object") {
+          activeFiltersEl.hidden = true;
+          return;
+        }
+        const parts = [];
+        if (filters.area) parts.push(filters.area);
+        if (typeof filters.priceMax === "number") parts.push(`≤ ${rupiah(filters.priceMax)}`);
+        else if (typeof filters.priceMin === "number") parts.push(`≥ ${rupiah(filters.priceMin)}`);
+        if (filters.gender && GENDER_META[filters.gender]) parts.push(GENDER_META[filters.gender].label);
+
+        if (parts.length === 0) {
+          activeFiltersEl.hidden = true;
+          return;
+        }
+
+        activeFiltersEl.hidden = false;
+        activeFiltersEl.innerHTML = "";
+        const label = document.createElement("span");
+        label.textContent = parts.join(" · ");
+        const change = document.createElement("button");
+        change.type = "button";
+        change.textContent = "Ubah";
+        change.addEventListener("click", () => reopenWizard(filters));
+        activeFiltersEl.append(label, change);
       }
 
       async function send(message) {
         errorEl.textContent = "";
         sendBtn.disabled = true;
         addBubble(message, "user");
+        showTyping();
         try {
           const res = await fetch("/chat", {
             method: "POST",
@@ -218,14 +1028,23 @@
             body: JSON.stringify({ session_id: sessionId(), message }),
           });
           const data = await res.json();
+          hideTyping();
           if (!res.ok) {
-            errorEl.textContent = data.error || `Gagal (${res.status})`;
+            console.error("[chat] request failed", res.status, data);
+            errorEl.textContent = "Ada yang salah di sistem kami. Coba lagi sebentar ya — kalau masih gagal, refresh halaman.";
             return;
           }
+          input.value = "";
           addBubble(data.reply || "", "assistant");
-          if (data.listings && data.listings.length > 0) addListings(data.listings);
+          if (Array.isArray(data.listings)) {
+            if (data.listings.length > 0) addListings(data.listings);
+            else addEmptyState();
+          }
+          renderActiveFilters(data.filters);
         } catch (err) {
-          errorEl.textContent = `Kesalahan jaringan: ${err}`;
+          hideTyping();
+          console.error("[chat] network error", err);
+          errorEl.textContent = "Koneksi terputus. Cek internetmu, lalu coba kirim lagi.";
         } finally {
           sendBtn.disabled = false;
           input.focus();
@@ -236,7 +1055,9 @@
         e.preventDefault();
         const message = input.value.trim();
         if (!message) return;
-        input.value = "";
+        // Input is cleared inside send() only after a successful response —
+        // a failed send must leave the user's text in place so they can just
+        // hit Kirim again instead of retyping it.
         void send(message);
       });
     </script>

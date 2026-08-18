@@ -58,7 +58,7 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
 
   try {
     const res = await stub.fetch(subrequest);
-    const data = (await res.json()) as { reply?: string; listings?: unknown[] };
+    const data = (await res.json()) as { reply?: string; listings?: unknown[]; filters?: unknown };
     return json({ session_id: sessionId, ...data }, res.status);
   } catch (err) {
     // Defense in depth: ChatSession.fetch already catches its own errors and
