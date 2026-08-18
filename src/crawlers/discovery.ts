@@ -1,7 +1,6 @@
 import type { Page } from "playwright";
 import { JAKARTA_SEEDS, isInJakartaScope } from "../config/jakarta.js";
 import { politeWait } from "../config/politeness.js";
-import { CsvRunWriter } from "../lib/csv.js";
 import { KnownListingsStore } from "../lib/knownListings.js";
 import { RunLogger } from "../lib/runLog.js";
 import { computeCardSignature } from "../lib/signature.js";
@@ -71,14 +70,14 @@ async function loadAllCards(page: Page, log: RunLogger): Promise<DiscoveredCard[
 
 export async function runDiscoveryCrawl(
   page: Page,
-  csvWriter: CsvRunWriter,
+  ingest: (row: ListingRow) => Promise<void>,
   store: KnownListingsStore,
   log: RunLogger,
   clickBudget: DailyClickBudget,
 ): Promise<void> {
   for (const seed of JAKARTA_SEEDS) {
     try {
-      await runSeedDiscovery(page, seed, csvWriter, store, log, clickBudget);
+      await runSeedDiscovery(page, seed, ingest, store, log, clickBudget);
     } catch (err) {
       // A page-level failure (e.g. pagination stuck behind a persistent overlay)
       // must not abort the whole run — log it and move to the next seed, per the
@@ -93,7 +92,7 @@ export async function runDiscoveryCrawl(
 async function runSeedDiscovery(
   page: Page,
   seed: (typeof JAKARTA_SEEDS)[number],
-  csvWriter: CsvRunWriter,
+  ingest: (row: ListingRow) => Promise<void>,
   store: KnownListingsStore,
   log: RunLogger,
   clickBudget: DailyClickBudget,
@@ -139,7 +138,7 @@ async function runSeedDiscovery(
           scraped_at: now,
           crawl_type: "discovery",
         };
-        csvWriter.writeRow(row);
+        await ingest(row);
         log.success(known.listingId, known.url);
         continue;
       }
@@ -203,7 +202,7 @@ async function runSeedDiscovery(
           crawl_type: "discovery",
         };
 
-        csvWriter.writeRow(row);
+        await ingest(row);
         store.upsertFromDiscoveryClick(listingId, url, fields.cityRaw, signature, now);
         log.success(listingId, url);
       } catch (err) {

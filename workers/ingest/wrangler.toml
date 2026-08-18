@@ -1,0 +1,19 @@
+name = "find-rooms-ingest"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "find-rooms-listings"
+database_id = "41463d3d-5a51-4040-ba72-d8c3252ce5e0"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "kost-listings"
+
+[ai]
+binding = "AI"
+
+# Secrets (set via `wrangler secret put INGEST_SHARED_SECRET`, NOT committed):
+#   INGEST_SHARED_SECRET

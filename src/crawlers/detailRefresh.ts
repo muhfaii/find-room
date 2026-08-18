@@ -1,7 +1,6 @@
 import type { Page } from "playwright";
 import { isInJakartaScope } from "../config/jakarta.js";
 import { politeWait } from "../config/politeness.js";
-import { CsvRunWriter } from "../lib/csv.js";
 import { KnownListingsStore, type KnownListing } from "../lib/knownListings.js";
 import { RunLogger } from "../lib/runLog.js";
 import type { ListingRow } from "../types/listing.js";
@@ -96,7 +95,8 @@ export async function extractDetailFields(page: Page): Promise<DetailFields> {
 export async function runDetailRefreshCrawl(
   page: Page,
   listings: KnownListing[],
-  csvWriter: CsvRunWriter,
+  ingest: (row: ListingRow) => Promise<void>,
+  retire: (listingId: string) => Promise<void>,
   store: KnownListingsStore,
   log: RunLogger,
   isAlreadyDoneThisRun: (listingId: string) => boolean,
@@ -148,7 +148,7 @@ export async function runDetailRefreshCrawl(
         crawl_type: "detail_refresh",
       };
 
-      csvWriter.writeRow(row);
+      await ingest(row);
       store.recordRefreshSuccess(listing.listingId, now);
       log.success(listing.listingId, listing.url);
     } catch (err) {
@@ -156,6 +156,10 @@ export async function runDetailRefreshCrawl(
       // PRD §8: per-listing failures are logged and skipped, never abort the run.
       const retired = store.recordRefreshFailure(listing.listingId, now, reason);
       log.failure(listing.listingId, listing.url, retired ? `${reason} (retired)` : reason);
+      if (retired) {
+        // retire() is internally retried + dead-lettered on failure, never throws.
+        await retire(listing.listingId);
+      }
     }
 
     markDoneThisRun(listing.listingId);
