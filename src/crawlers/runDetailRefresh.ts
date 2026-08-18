@@ -1,10 +1,10 @@
 import { chromium } from "playwright";
 import { assertCrawlDelayRespected, fetchRobotsRules, RobotsCheckFailed } from "../lib/robots.js";
-import { CsvRunWriter, csvFileName } from "../lib/csv.js";
 import { KnownListingsStore } from "../lib/knownListings.js";
 import { RunLogger } from "../lib/runLog.js";
 import { RunProgressStore } from "../lib/runProgress.js";
 import { runDetailRefreshCrawl } from "./detailRefresh.js";
+import { ingestRows, retireListing, resubmitDeadLetterQueue } from "../lib/ingestClient.js";
 
 const LOG_PATH = "data/logs/detail_refresh.log";
 
@@ -18,6 +18,9 @@ async function main() {
   const log = new RunLogger(LOG_PATH, "detail_refresh");
   const now = new Date();
 
+  // Replay anything that failed to reach the ingest worker on a previous run.
+  await resubmitDeadLetterQueue();
+
   try {
     const rules = await fetchRobotsRules();
     assertCrawlDelayRespected(rules);
@@ -30,7 +33,6 @@ async function main() {
     throw err;
   }
 
-  const csvWriter = new CsvRunWriter(`data/output/${csvFileName("detail_refresh")}`);
   const store = new KnownListingsStore("data/known-listings/store.json");
   const runDate = now.toISOString().slice(0, 10);
   const progress = new RunProgressStore("data/known-listings/detail_refresh_progress.json", runDate);
@@ -49,7 +51,8 @@ async function main() {
     await runDetailRefreshCrawl(
       page,
       listings,
-      csvWriter,
+      (row) => ingestRows([row]),
+      retireListing,
       store,
       log,
       (listingId) => progress.isDone(listingId),

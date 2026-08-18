@@ -1,0 +1,50 @@
+name = "find-rooms-chat"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "find-rooms-listings"
+database_id = "41463d3d-5a51-4040-ba72-d8c3252ce5e0"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "kost-listings"
+
+[ai]
+binding = "AI"
+
+[[durable_objects.bindings]]
+name = "CHAT_SESSION"
+class_name = "ChatSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatSession"]
+
+# Per-IP rate limit on /chat: each OpenAI call is a paid, unauthenticated
+# request, so an unlimited endpoint is a cost/DoS-by-billing vector. 20
+# requests per 60s per client IP is generous for a real conversation, tight
+# enough to make scripted abuse expensive.
+[[ratelimits]]
+name = "CHAT_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }
+
+# Secrets (set via `wrangler secret put OPENAI_API_KEY`, NOT committed):
+#   OPENAI_API_KEY
+
+[[routes]]
+pattern = "habitat.byopre.com"
+custom_domain = true
+
+[assets]
+directory = "src/static"
+binding = "ASSETS"
+# Without this, Cloudflare's asset router intercepts every request before our
+# Worker's fetch() runs at all — and rejects non-GET verbs (like POST /chat)
+# with a blanket 405 instead of falling through to the Worker. Setting this
+# makes our fetch() the first thing that runs; it explicitly decides GET ->
+# ASSETS.fetch(), POST /chat -> handleChat(), everything else -> 404.
+run_worker_first = true

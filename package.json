@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "discovery": "tsx src/crawlers/runDiscovery.ts",
-    "detail-refresh": "tsx src/crawlers/runDetailRefresh.ts",
+    "discovery": "tsx --env-file-if-exists=.env src/crawlers/runDiscovery.ts",
+    "detail-refresh": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefresh.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

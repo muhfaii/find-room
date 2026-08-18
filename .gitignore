@@ -4,4 +4,8 @@ data/known-listings/*.json
 data/logs/*.log
 data/cron-logs/*.log
 data/dom-snapshots/
+data/ingest-failures.jsonl
+.env
+workers/*/.dev.vars
+workers/*/.wrangler/
 dist/
