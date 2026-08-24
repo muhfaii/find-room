@@ -21,7 +21,9 @@ export interface ListingHit {
   rating: number | null;
   review_count: number | null;
   image_url: string | null;
+  image_urls: string[];
   facilities: string[];
+  last_refreshed_at: string | null;
 }
 
 export interface ToolResult {
@@ -55,20 +57,20 @@ const EMBEDDING_MODEL: string = "@cf/baai/bge-m3";
 
 const HIT_COLUMNS =
   "listing_id, title, price_amount, price_period, area_raw, city_raw, url, gender_restriction, " +
-  "rating, review_count, image_urls_json, facilities_json";
+  "rating, review_count, image_urls_json, facilities_json, last_refreshed_at";
 
 type D1Row = Record<string, unknown>;
 
 // Scraped/derived JSON columns aren't guaranteed well-formed — a parse failure
 // here shouldn't take down the whole chat turn, so these default to "no data"
 // rather than throwing.
-function firstImageUrl(json: unknown): string | null {
-  if (typeof json !== "string") return null;
+function parseImageUrls(json: unknown): string[] {
+  if (typeof json !== "string") return [];
   try {
     const arr = JSON.parse(json);
-    return Array.isArray(arr) && typeof arr[0] === "string" ? arr[0] : null;
+    return Array.isArray(arr) ? arr.filter((v): v is string => typeof v === "string") : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -83,6 +85,7 @@ function parseFacilities(json: unknown): string[] {
 }
 
 function rowToHit(row: D1Row): ListingHit {
+  const imageUrls = parseImageUrls(row.image_urls_json);
   return {
     listing_id: String(row.listing_id ?? ""),
     title: String(row.title ?? ""),
@@ -94,8 +97,10 @@ function rowToHit(row: D1Row): ListingHit {
     gender_restriction: typeof row.gender_restriction === "string" ? row.gender_restriction : null,
     rating: typeof row.rating === "number" ? row.rating : null,
     review_count: typeof row.review_count === "number" ? row.review_count : null,
-    image_url: firstImageUrl(row.image_urls_json),
+    image_url: imageUrls[0] ?? null,
+    image_urls: imageUrls,
     facilities: parseFacilities(row.facilities_json),
+    last_refreshed_at: typeof row.last_refreshed_at === "string" ? row.last_refreshed_at : null,
   };
 }
 

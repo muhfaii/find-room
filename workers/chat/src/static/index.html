@@ -105,14 +105,30 @@
         gap: 6px;
         margin-bottom: 20px;
       }
-      .progress-dots span {
+      .progress-dots .progress-dot {
         height: 6px;
         flex: 1;
+        padding: 0;
+        border: none;
         border-radius: 999px;
         background: var(--surface-3);
+        cursor: pointer;
       }
-      .progress-dots span.done { background: var(--accent); }
-      .progress-dots span.current { background: var(--accent); opacity: 0.5; }
+      .progress-dots .progress-dot.done { background: var(--accent); }
+      .progress-dots .progress-dot.current { background: var(--accent); opacity: 0.5; }
+
+      .skip-wizard { margin-top: 20px; text-align: center; }
+      .skip-wizard button {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-family: inherit;
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 8px 4px;
+      }
 
       .step-eyebrow {
         font-size: var(--fs-xs);
@@ -300,6 +316,34 @@
         }
       }
 
+      /* Listing group: one search result batch, with its own sort control
+         that reorders only these cards (not the whole chat transcript). */
+      .listing-group { width: 100%; }
+      .sort-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        font-size: var(--fs-xs);
+      }
+      .sort-chip {
+        padding: 5px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-1);
+        color: var(--text-secondary);
+        font-family: inherit;
+        font-size: var(--fs-xs);
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .sort-chip.active {
+        border-color: var(--accent);
+        background: var(--accent-tint);
+        color: var(--accent-hover);
+      }
+      .listing-cards { display: flex; flex-direction: column; }
+
       /* Listing card */
       .listing {
         align-self: flex-start;
@@ -313,17 +357,19 @@
         font-size: var(--fs-sm);
       }
       .listing + .listing { margin-top: -6px; }
+      .listing-thumb-wrap { position: relative; flex-shrink: 0; }
       .listing-thumb {
-        width: 56px;
-        height: 56px;
+        width: 84px;
+        height: 84px;
         border-radius: 8px;
         flex-shrink: 0;
         object-fit: cover;
         background: var(--surface-3);
+        display: block;
       }
       .listing-thumb-fallback {
-        width: 56px;
-        height: 56px;
+        width: 84px;
+        height: 84px;
         border-radius: 8px;
         flex-shrink: 0;
         background: var(--surface-3);
@@ -332,9 +378,26 @@
         justify-content: center;
         color: var(--text-muted);
       }
+      .photo-count-badge {
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(27, 27, 27, 0.72);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.4;
+      }
       .listing-body { min-width: 0; flex: 1; }
       .listing .title { font-weight: 600; margin-bottom: 2px; }
       .listing .meta { color: var(--text-secondary); }
+      .listing .freshness {
+        margin-top: 2px;
+        color: var(--text-muted);
+        font-size: var(--fs-xs);
+      }
       .listing .rating {
         display: flex;
         align-items: center;
@@ -400,6 +463,18 @@
         font-size: var(--fs-sm);
         font-weight: 500;
         cursor: pointer;
+      }
+
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
 
       form {
@@ -522,6 +597,7 @@
       <div id="messages" aria-live="polite" hidden></div>
       <p id="error" class="err" role="alert"></p>
       <form id="form" hidden>
+        <label for="input" class="visually-hidden">Pesan ke asisten pencarian kost</label>
         <input
           id="input"
           type="text"
@@ -616,9 +692,18 @@
       function renderProgressDots() {
         const dots = STEPS.map((_, i) => {
           const cls = i < wizard.step ? "done" : i === wizard.step ? "current" : "";
-          return `<span class="${cls}"></span>`;
+          return `<button type="button" class="progress-dot ${cls}" data-step="${i}" aria-label="Langkah ${i + 1}"></button>`;
         }).join("");
         return `<div class="progress-dots">${dots}</div>`;
+      }
+
+      // Every step is optional (the backend needs zero filters to search), so
+      // this link is always visible: users who already know what they want
+      // shouldn't be forced through 4 screens to say it.
+      function renderSkipWizardLink() {
+        return `<div class="skip-wizard">
+          <button type="button" id="skipWizard">Lewati, aku mau ketik sendiri</button>
+        </div>`;
       }
 
       function optionCardHtml({ selected, icon, label, hint, dataset }) {
@@ -635,8 +720,10 @@
 
       function renderWizard() {
         const step = STEPS[wizard.step];
-        onboardingEl.innerHTML = renderProgressDots() + renderStepBody(step);
+        onboardingEl.innerHTML = renderProgressDots() + renderStepBody(step) + renderSkipWizardLink();
         wireStepEvents(step);
+        wireProgressDots();
+        wireSkipWizardLink();
       }
 
       function renderStepBody(step) {
@@ -656,7 +743,7 @@
             <div class="option-grid single-col">${cards}</div>
             <div class="step-actions">
               <span></span>
-              <button type="button" class="step-primary" id="stepNext" ${wizard.budget ? "" : "disabled"}>
+              <button type="button" class="step-primary" id="stepNext">
                 Lanjut <svg class="icon"><use href="#icon-arrow-right" /></svg>
               </button>
             </div>`;
@@ -681,7 +768,7 @@
               <button type="button" class="text-link" id="stepBack">
                 <svg class="icon"><use href="#icon-chevron-left" /></svg> Kembali
               </button>
-              <button type="button" class="step-primary" id="stepNext" ${wizard.area ? "" : "disabled"}>
+              <button type="button" class="step-primary" id="stepNext">
                 Lanjut <svg class="icon"><use href="#icon-arrow-right" /></svg>
               </button>
             </div>`;
@@ -707,7 +794,7 @@
               <button type="button" class="text-link" id="stepBack">
                 <svg class="icon"><use href="#icon-chevron-left" /></svg> Kembali
               </button>
-              <button type="button" class="step-primary" id="stepNext" ${wizard.gender ? "" : "disabled"}>
+              <button type="button" class="step-primary" id="stepNext">
                 Lanjut <svg class="icon"><use href="#icon-arrow-right" /></svg>
               </button>
             </div>`;
@@ -763,7 +850,6 @@
         if (areaInput) {
           areaInput.addEventListener("input", () => {
             wizard.area = areaInput.value.trim();
-            document.getElementById("stepNext").disabled = !wizard.area;
           });
         }
 
@@ -782,15 +868,44 @@
         });
       }
 
+      // Lets a user jump straight to any step from anywhere — used both while
+      // moving forward and when revising filters via "Ubah" (which reopens at
+      // step 0; without this, changing just one field means re-tapping
+      // through every earlier step again).
+      function wireProgressDots() {
+        onboardingEl.querySelectorAll(".progress-dot").forEach((dot) => {
+          dot.addEventListener("click", () => {
+            wizard.step = Number(dot.dataset.step);
+            renderWizard();
+          });
+        });
+      }
+
+      function wireSkipWizardLink() {
+        document.getElementById("skipWizard")?.addEventListener("click", skipEntireWizard);
+      }
+
+      // Drops straight into chat mode with no filters pre-set. Posts a short
+      // assistant bubble so the chat pane isn't just blank the moment the
+      // wizard disappears.
+      function skipEntireWizard() {
+        onboardingEl.hidden = true;
+        messagesEl.hidden = false;
+        form.hidden = false;
+        addBubble("Oke, langsung aja — ketik apa yang kamu cari.", "assistant");
+        input.focus();
+      }
+
       function composeWizardMessage() {
         const parts = [];
         if (wizard.area) parts.push(`cari kost di ${wizard.area}`);
         else parts.push("cari kost");
         if (wizard.gender) parts.push(GENDER_META[wizard.gender].label.toLowerCase());
         if (wizard.budget) {
-          if (wizard.budget.max && wizard.budget.min) parts.push(`budget Rp${wizard.budget.min}-${wizard.budget.max}`);
-          else if (wizard.budget.max) parts.push(`budget maksimal Rp${wizard.budget.max}`);
-          else if (wizard.budget.min) parts.push(`budget minimal Rp${wizard.budget.min}`);
+          if (wizard.budget.max && wizard.budget.min) {
+            parts.push(`budget antara ${rupiah(wizard.budget.min)} dan ${rupiah(wizard.budget.max)}`);
+          } else if (wizard.budget.max) parts.push(`budget maksimal ${rupiah(wizard.budget.max)}`);
+          else if (wizard.budget.min) parts.push(`budget minimal ${rupiah(wizard.budget.min)}`);
         }
         if (wizard.facilities.length > 0) {
           const labels = wizard.facilities.map((t) => FACILITY_META[t].label);
@@ -883,87 +998,189 @@
         return span;
       }
 
-      function addListings(listings) {
-        for (const l of listings || []) {
-          const card = document.createElement("div");
-          card.className = "listing";
+      // Relative freshness label from last_refreshed_at. Kost rooms get taken
+      // fast, so "diperbarui X hari lalu" is a real trust/urgency signal the
+      // backend already tracks (it drives ORDER BY) but never surfaced before.
+      function relativeFreshness(isoString) {
+        if (!isoString) return null;
+        const then = new Date(isoString).getTime();
+        if (Number.isNaN(then)) return null;
+        const days = Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
+        if (days <= 0) return "Diperbarui hari ini";
+        if (days === 1) return "Diperbarui kemarin";
+        if (days < 30) return `Diperbarui ${days} hari lalu`;
+        return `Diperbarui ${Math.floor(days / 30)} bulan lalu`;
+      }
 
-          const safeImg = l.image_url ? safeHttpUrl(l.image_url) : null;
-          if (safeImg) {
-            const img = document.createElement("img");
-            img.className = "listing-thumb";
-            img.src = safeImg;
-            img.alt = "";
-            card.appendChild(img);
-          } else {
-            const fallback = document.createElement("div");
-            fallback.className = "listing-thumb-fallback";
-            fallback.innerHTML = `<svg class="icon icon-lg"><use href="#icon-home" /></svg>`;
-            card.appendChild(fallback);
+      function buildListingCard(l) {
+        const card = document.createElement("div");
+        card.className = "listing";
+
+        const imageUrls = Array.isArray(l.image_urls) ? l.image_urls : l.image_url ? [l.image_url] : [];
+        const safeImg = imageUrls[0] ? safeHttpUrl(imageUrls[0]) : null;
+        if (safeImg) {
+          const thumbWrap = document.createElement("div");
+          thumbWrap.className = "listing-thumb-wrap";
+          const img = document.createElement("img");
+          img.className = "listing-thumb";
+          img.src = safeImg;
+          img.alt = "";
+          thumbWrap.appendChild(img);
+          if (imageUrls.length > 1) {
+            const badge = document.createElement("span");
+            badge.className = "photo-count-badge";
+            badge.textContent = `+${imageUrls.length - 1}`;
+            thumbWrap.appendChild(badge);
           }
-
-          const body = document.createElement("div");
-          body.className = "listing-body";
-
-          const title = document.createElement("div");
-          title.className = "title";
-          title.textContent = l.title;
-          body.appendChild(title);
-
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          meta.textContent = [formatPrice(l.price_amount, l.price_period), l.area_raw].filter(Boolean).join(" · ");
-          body.appendChild(meta);
-
-          if (typeof l.rating === "number") {
-            const rating = document.createElement("div");
-            rating.className = "rating";
-            const reviewText = typeof l.review_count === "number" ? ` (${l.review_count} ulasan)` : "";
-            rating.innerHTML = `<svg class="icon icon-sm icon-star"><use href="#icon-star" /></svg>`;
-            rating.append(`${l.rating.toFixed(1)}${reviewText}`);
-            body.appendChild(rating);
-          }
-
-          if (Array.isArray(l.facilities) && l.facilities.length > 0) {
-            const facilities = document.createElement("div");
-            facilities.className = "facilities";
-            for (const tag of l.facilities.slice(0, 3)) {
-              facilities.appendChild(buildFacilityBadge(tag));
-            }
-            body.appendChild(facilities);
-          }
-
-          const actions = document.createElement("div");
-          actions.className = "listing-actions";
-
-          const safeUrl = safeHttpUrl(l.url);
-          if (safeUrl) {
-            const link = document.createElement("a");
-            link.href = safeUrl;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            link.textContent = "Lihat listing";
-            actions.appendChild(link);
-          }
-
-          // "Asking about property details" step of the journey — drills
-          // straight into a chat turn about this specific listing.
-          const askBtn = document.createElement("button");
-          askBtn.type = "button";
-          askBtn.innerHTML = `<svg class="icon icon-sm"><use href="#icon-message-circle" /></svg>&nbsp;Tanya detail`;
-          askBtn.addEventListener("click", () => {
-            void send(`ceritakan lebih detail soal "${l.title}"`);
-          });
-          actions.appendChild(askBtn);
-
-          body.appendChild(actions);
-          card.appendChild(body);
-          messagesEl.appendChild(card);
+          card.appendChild(thumbWrap);
+        } else {
+          const fallback = document.createElement("div");
+          fallback.className = "listing-thumb-fallback";
+          fallback.innerHTML = `<svg class="icon icon-lg"><use href="#icon-home" /></svg>`;
+          card.appendChild(fallback);
         }
+
+        const body = document.createElement("div");
+        body.className = "listing-body";
+
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = l.title;
+        body.appendChild(title);
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = [formatPrice(l.price_amount, l.price_period), l.area_raw].filter(Boolean).join(" · ");
+        body.appendChild(meta);
+
+        const freshnessText = relativeFreshness(l.last_refreshed_at);
+        if (freshnessText) {
+          const freshness = document.createElement("div");
+          freshness.className = "freshness";
+          freshness.textContent = freshnessText;
+          body.appendChild(freshness);
+        }
+
+        if (typeof l.rating === "number") {
+          const rating = document.createElement("div");
+          rating.className = "rating";
+          const reviewText = typeof l.review_count === "number" ? ` (${l.review_count} ulasan)` : "";
+          rating.innerHTML = `<svg class="icon icon-sm icon-star"><use href="#icon-star" /></svg>`;
+          rating.append(`${l.rating.toFixed(1)}${reviewText}`);
+          body.appendChild(rating);
+        }
+
+        if (Array.isArray(l.facilities) && l.facilities.length > 0) {
+          const facilities = document.createElement("div");
+          facilities.className = "facilities";
+          const shown = l.facilities.slice(0, 3);
+          for (const tag of shown) {
+            facilities.appendChild(buildFacilityBadge(tag));
+          }
+          const remaining = l.facilities.length - shown.length;
+          if (remaining > 0) {
+            const more = document.createElement("span");
+            more.className = "facility-badge";
+            more.textContent = `+${remaining} lainnya`;
+            facilities.appendChild(more);
+          }
+          body.appendChild(facilities);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "listing-actions";
+
+        const safeUrl = safeHttpUrl(l.url);
+        if (safeUrl) {
+          const link = document.createElement("a");
+          link.href = safeUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "Lihat listing";
+          actions.appendChild(link);
+        }
+
+        // "Asking about property details" step of the journey — drills
+        // straight into a chat turn about this specific listing.
+        const askBtn = document.createElement("button");
+        askBtn.type = "button";
+        askBtn.innerHTML = `<svg class="icon icon-sm"><use href="#icon-message-circle" /></svg>&nbsp;Tanya detail`;
+        askBtn.addEventListener("click", () => {
+          void send(`ceritakan lebih detail soal "${l.title}"`);
+        });
+        actions.appendChild(askBtn);
+
+        body.appendChild(actions);
+        card.appendChild(body);
+        return card;
+      }
+
+      const LISTING_SORTS = [
+        { id: "recent", label: "Terbaru" },
+        { id: "price_asc", label: "Harga terendah" },
+        { id: "rating_desc", label: "Rating tertinggi" },
+      ];
+
+      function sortListings(listings, sortId) {
+        const arr = [...listings];
+        if (sortId === "price_asc") {
+          arr.sort((a, b) => (a.price_amount ?? Infinity) - (b.price_amount ?? Infinity));
+        } else if (sortId === "rating_desc") {
+          arr.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+        }
+        return arr; // "recent" = keep the server's own order (relevance/recency)
+      }
+
+      // Renders one search-result batch as its own group with a sort control
+      // that reorders only these cards — the chat log otherwise stays a plain
+      // chronological transcript, so sorting can't touch anything above/below.
+      function addListings(listings) {
+        if (!listings || listings.length === 0) return;
+
+        const group = document.createElement("div");
+        group.className = "listing-group";
+
+        const cardsWrap = document.createElement("div");
+        cardsWrap.className = "listing-cards";
+
+        let activeSort = "recent";
+        function renderCards() {
+          cardsWrap.innerHTML = "";
+          for (const l of sortListings(listings, activeSort)) {
+            cardsWrap.appendChild(buildListingCard(l));
+          }
+        }
+
+        if (listings.length > 1) {
+          const sortBar = document.createElement("div");
+          sortBar.className = "sort-bar";
+          for (const s of LISTING_SORTS) {
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = `sort-chip${s.id === activeSort ? " active" : ""}`;
+            chip.textContent = s.label;
+            chip.addEventListener("click", () => {
+              activeSort = s.id;
+              sortBar.querySelectorAll(".sort-chip").forEach((b) => b.classList.remove("active"));
+              chip.classList.add("active");
+              renderCards();
+            });
+            sortBar.appendChild(chip);
+          }
+          group.appendChild(sortBar);
+        }
+
+        group.appendChild(cardsWrap);
+        messagesEl.appendChild(group);
+        renderCards();
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
 
-      function addEmptyState() {
+      // `filters` is the session's current filter state (from the last /chat
+      // response), so the budget suggestion is relative to what the user
+      // actually has set — not a fixed guess that can be nonsensical (e.g.
+      // "raise to 2 juta" when their budget is already 3 juta).
+      function addEmptyState(filters) {
         const card = document.createElement("div");
         card.className = "empty-state";
         const p = document.createElement("p");
@@ -973,17 +1190,21 @@
         const actions = document.createElement("div");
         actions.className = "empty-state-actions";
 
-        const raiseBudget = document.createElement("button");
-        raiseBudget.type = "button";
-        raiseBudget.textContent = "Naikkan budget";
-        raiseBudget.addEventListener("click", () => void send("naikkan budget jadi 2 juta"));
+        if (typeof filters?.priceMax === "number") {
+          const nextBudget = filters.priceMax + 500000;
+          const raiseBudget = document.createElement("button");
+          raiseBudget.type = "button";
+          raiseBudget.textContent = `Naikkan budget ke ${rupiah(nextBudget)}`;
+          raiseBudget.addEventListener("click", () => void send(`naikkan budget jadi ${rupiah(nextBudget)}`));
+          actions.appendChild(raiseBudget);
+        }
 
         const otherArea = document.createElement("button");
         otherArea.type = "button";
         otherArea.textContent = "Cari area lain";
         otherArea.addEventListener("click", () => void send("coba cari di area lain"));
+        actions.appendChild(otherArea);
 
-        actions.append(raiseBudget, otherArea);
         card.appendChild(actions);
         messagesEl.appendChild(card);
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -1038,7 +1259,7 @@
           addBubble(data.reply || "", "assistant");
           if (Array.isArray(data.listings)) {
             if (data.listings.length > 0) addListings(data.listings);
-            else addEmptyState();
+            else addEmptyState(data.filters);
           }
           renderActiveFilters(data.filters);
         } catch (err) {
