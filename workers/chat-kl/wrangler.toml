@@ -1,0 +1,50 @@
+name = "find-rooms-chat-kl"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# KL deployment uses its OWN D1 database and Vectorize index (ADR-0001),
+# independent from Jakarta's. Fill in the real database_id after
+# `wrangler d1 create find-rooms-listings-kl`.
+[[d1_databases]]
+binding = "DB"
+database_name = "find-rooms-listings-kl"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "kl-room-listings"
+
+[ai]
+binding = "AI"
+
+[[durable_objects.bindings]]
+name = "CHAT_SESSION"
+class_name = "ChatSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatSession"]
+
+# Per-IP rate limit on /chat (mirrors Jakarta): each OpenAI call is a paid,
+# unauthenticated request, so an unlimited endpoint is a cost/DoS-by-billing
+# vector. 20 requests per 60s per client IP.
+[[ratelimits]]
+name = "CHAT_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }
+
+# Secrets (set via `wrangler secret put OPENAI_API_KEY`, NOT committed):
+#   OPENAI_API_KEY
+
+# KL is reachable under the same public domain as Jakarta via a path-split
+# Worker Route (ADR-0003): findrooms.app/kl/* -> this worker,
+# findrooms.app/jakarta/* -> the Jakarta chat worker.
+[[routes]]
+pattern = "findrooms.app/kl/*"
+
+[assets]
+directory = "src/static"
+binding = "ASSETS"
+# See the Jakarta chat worker's wrangler.toml for why run_worker_first is set.
+run_worker_first = true
