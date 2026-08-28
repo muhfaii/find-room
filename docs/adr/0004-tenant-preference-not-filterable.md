@@ -1,0 +1,5 @@
+# Tenant race/religion preference is stored and displayed, but never filterable
+
+Kuala Lumpur listings frequently carry a landlord-stated race/religion tenant preference — a normal, legal part of the Malaysian rental market. This field is stored as scraped and shown read-only on the listing card, the same way price or deposit terms are surfaced. It is deliberately excluded from search/filter parameters, in the chat tool schema and any future UI, even though the underlying data would support it trivially.
+
+The line matters: displaying scraped landlord text is a passthrough of public information a tenant needs, but exposing it as a *filter* would turn the product into an active tenant-screening tool built on top of a protected characteristic — a materially different (and much easier to reverse into) product decision than anything else in this scrape-and-display pipeline. A future engineer who notices the data is already there and wires up a filter "for free" would be making this decision silently; this ADR exists so they don't.

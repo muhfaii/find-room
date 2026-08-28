@@ -1,10 +1,12 @@
 node_modules/
 data/output/*.csv
 data/known-listings/*.json
+data/known-listings-kl/
 data/logs/*.log
 data/cron-logs/*.log
 data/dom-snapshots/
 data/ingest-failures.jsonl
+data/ingest-failures-kl.jsonl
 .env
 workers/*/.dev.vars
 workers/*/.wrangler/

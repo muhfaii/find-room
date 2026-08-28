@@ -1,0 +1,25 @@
+name = "find-rooms-ingest-kl"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# KL deployment has its OWN D1 database, independent from Jakarta's (ADR-0001).
+# Create it before deploying, then fill in the real database_id:
+#   wrangler d1 create find-rooms-listings-kl
+#   wrangler d1 execute find-rooms-listings-kl --remote --file=./schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "find-rooms-listings-kl"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+# KL's own Vectorize index (created via `wrangler vectorize create`), separate
+# from Jakarta's kost-listings index.
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "kl-room-listings"
+
+[ai]
+binding = "AI"
+
+# Secrets (set via `wrangler secret put INGEST_SHARED_SECRET`, NOT committed):
+#   INGEST_SHARED_SECRET

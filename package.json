@@ -6,6 +6,8 @@
   "scripts": {
     "discovery": "tsx --env-file-if-exists=.env src/crawlers/runDiscovery.ts",
     "detail-refresh": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefresh.ts",
+    "discovery:kl": "tsx --env-file-if-exists=.env src/crawlers/runDiscoveryKl.ts",
+    "detail-refresh:kl": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefreshKl.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
