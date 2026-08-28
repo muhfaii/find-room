@@ -14,15 +14,21 @@ Cross-reference: the existing Jakarta/Mamikos PRD is cited throughout the codeba
 
 ## §2 — Seed URLs
 
-Confirmed working pattern, tested live on 2026-08-28:
+**All 7 confirmed** (re-verified live 2026-08-28, matches [src/config/klMudah.ts](../src/config/klMudah.ts)). The pattern is **not** a single uniform `{city-slug}/rooms-for-rent` — it splits into two shapes depending on administrative level:
 
-```
-https://www.mudah.my/{city-slug}/rooms-for-rent
-```
+- **State/federal-territory level** (Kuala Lumpur and Putrajaya are themselves federal territories, i.e. top-level location slugs): `https://www.mudah.my/{slug}/rooms-for-rent`
+  - `kuala-lumpur` → "Room For Rent in Kuala Lumpur" (~3,770 results)
+  - `putrajaya` → "Room For Rent in Putrajaya" (~98 results)
+- **Sub-area within a state** (Petaling Jaya, Ampang, Subang Jaya, Shah Alam, Bangi are all towns *within* Selangor, not their own top-level slug): `https://www.mudah.my/{state-slug}-{subarea-slug}/rooms-for-rent`
+  - `selangor-petaling-jaya` (~479), `selangor-ampang` (~122), `selangor-subang-jaya` (~267), `selangor-shah-alam` (~835), `selangor-bangi` (~225)
 
-`kuala-lumpur` confirmed live (3,771 results at time of testing). The slugs for Petaling Jaya, Ampang Jaya, Subang Jaya, Shah Alam, Bangi, and Putrajaya were **not yet individually confirmed** — do this the same way `jakarta.ts` documents its curl checks (§ comment citing HTTP 200, not a redirect/404) before writing the seed list. Likely candidates to verify: `petaling-jaya`, `ampang`, `subang-jaya`, `shah-alam`, `bangi`, `putrajaya` — Mudah.my's slugs are not guaranteed to match the "Ampang Jaya" full name (e.g. it may just be `ampang`).
+A bare `{subarea}/rooms-for-rent` (e.g. `petaling-jaya/rooms-for-rent`) is **not valid** — it 503s at the origin. A two-segment `{state}/{subarea}/rooms-for-rent` is also wrong in a quieter way: it silently redirects to a state-wide keyword search (`/selangor/rooms-for-rent?q=...`, scoped to the whole state and a broader "Sale, Rent and Auction" category) instead of erroring — exactly the kind of silent-fallback trap the Jakarta PRD's price-range note warns about. The only correct form is the single hyphenated `{state}-{subarea}` segment, confirmed by reading the real "Popular Locations" sidebar links Mudah.my's own UI generates, not guessed from the slug taxonomy.
 
-**Open question for the seed list**: unlike Jakarta (which has one seed URL per administrative city with no further segmentation), it's unconfirmed whether Mudah.my's per-city URL already excludes daily rentals, or whether a rental-term filter param/segment needs to be appended. Confirm this before finalizing `src/config/klMudah.ts` — inspect the filter UI or vary a `?` param and check result counts change plausibly.
+Also confirmed: "Ampang Jaya" (the scope city's full administrative name) has no matching slug on Mudah.my — its listings are labeled and slugged as plain "Ampang" (`selangor-ampang`). The scope guard ([isInKlangValleyScope](../src/config/klMudah.ts)) treats "ampang" as the alias.
+
+Plain `curl`/`WebFetch` against these URLs returns 403/503 (Cloudflare bot protection) even though robots.txt permits them — verification requires a real browser request, not a bare HTTP client. This matches §3's compliance note that the site allows crawling per robots.txt but still runs active bot-detection on non-browser requests.
+
+**Resolved**: no rental-term filter param/segment needs to be appended to the seed URLs. Daily rentals are excluded by the "Room For Rent" category itself (`categoryId 2100`, `type=let`) — every card sampled across these seeds carries `"per month"` pricing and that category ID, confirmed live 2026-08-28 (see `src/config/klMudah.ts`'s header comment). Combined with §1's finding that Mudah.my has no yearly concept either, every seed URL here is effectively monthly-only at the source.
 
 ## §3 — Compliance
 
