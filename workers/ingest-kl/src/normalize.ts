@@ -38,6 +38,12 @@ export interface KlNormalizedListing {
   rating: number | null;
   review_count: number | null;
   image_urls_json: string | null;
+  // Speedhome-only fields — always null for source='mudah' rows (KL Speedhome
+  // PRD §7; ADR-0005 / ADR-0006 explain why each is its own field rather than
+  // folded into deposit_amount / price_period).
+  no_deposit_program: boolean | null;
+  utilities_deposit_amount: number | null;
+  min_rental_duration_months: number | null;
   content_hash: string; // sha1 of embedding-source text, for re-embed skip
   scraped_at: string;
   crawl_type: string;
@@ -210,10 +216,18 @@ export function normalizeGenderFromTitleMy(title: string): string | null {
 
 // ---- facility tag normalization ----
 
-// KL facility vocabulary: Jakarta's 11 tags plus near_transit (the new tag the
-// KL PRD §5 flags as needed for "Near KTM/LRT" style amenities). Unknown labels
-// fall back to snake_case(original) so nothing is silently dropped and joins
-// stay usable.
+// KL facility vocabulary: Jakarta's 11 tags, plus near_transit (Mudah.my's
+// "Near KTM/LRT" style amenities, KL PRD §5), plus water_included and
+// electricity_included (Speedhome's utilityTypes enum, KL Speedhome PRD §5),
+// plus queen_bed and single_bed (Wetopia's bed-type field, KL Wetopia PRD §7 —
+// folded into facility tags rather than a new schema column, since it's a
+// small closed enum like Speedhome's utilityTypes, not an open-ended concept).
+// Unknown labels fall back to snake_case(original) so nothing is silently
+// dropped and joins stay usable — this is deliberate for open-ended free-text
+// vocabularies (e.g. most of Speedhome's own `furnishes` list), not a gap to
+// close for every possible raw value; only add a new canonical tag here when
+// a *closed*, recurring enum member would otherwise always fall through (as
+// water_included/electricity_included/queen_bed/single_bed were).
 //
 // DUPLICATED in workers/chat-kl/src/tools.ts (same const, same name) — the KL
 // chat Worker needs this list too as its tool-schema enum. If you add/rename/
@@ -232,6 +246,10 @@ export const FACILITY_TAGS_KL = [
   "desk",
   "water_heater",
   "near_transit",
+  "water_included",
+  "electricity_included",
+  "queen_bed",
+  "single_bed",
 ] as const;
 
 // Lookup keyed by compacted lowercase form (alphanumerics only), mapping
@@ -323,6 +341,33 @@ const FACILITY_TAG_SYNONYMS_KL: Record<string, string> = {
   waterheating: "water_heater",
   pemanasair: "water_heater",
   pemanas: "water_heater",
+  // Speedhome's `utilityTypes` is a small closed enum (KL Speedhome PRD §5:
+  // confirmed values "INTERNET" | "WATER" | "ELECTRICITY") — unlike the rest
+  // of this table, which maps open-ended free text, all 3 possible members
+  // are worth mapping explicitly rather than letting 2 of 3 fall through to
+  // the unknown-label fallback (workers/chat-kl/src/tools.ts's FACILITY_TAGS_KL
+  // must be kept in sync with any new tag added here).
+  water: "water_included",
+  electricity: "electricity_included",
+  // Speedhome's `furnishes` vocabulary is open-ended (full furniture
+  // inventory) — most items are left to the unknown-label snake_case
+  // fallback on purpose, same as Mudah.my's own free-text amenities. Only
+  // "kitchen_cabinet" is mapped, since it's a clean synonym of the existing
+  // kitchen_access concept rather than a new one.
+  kitchencabinet: "kitchen_access",
+  // Wetopia's bed-type field (KL Wetopia PRD §3/§7) — a closed 2-member enum
+  // ("Queen Bed" | "Single Bed"), same reasoning as the utilityTypes mapping.
+  queenbed: "queen_bed",
+  singlebed: "single_bed",
+  // iBilik's utility labels (KL iBilik PRD §3) — "Wifi / Internet Access" and
+  // "Share Bathroom" are already-existing concepts under different exact
+  // wording than the synonyms above cover.
+  wifiinternetaccess: "wifi",
+  sharebathroom: "shared_bathroom",
+  // Roomz.asia's Utilities labels (KL Roomz PRD §3) — "Shower Heater" and
+  // "WiFi Access" are already-existing concepts under different exact wording.
+  showerheater: "water_heater",
+  wifiaccess: "wifi",
 };
 
 function compact(s: string): string {
@@ -434,6 +479,9 @@ export async function normalizeListingRowKl(row: KlListingRow): Promise<KlNormal
     rating: row.rating,
     review_count: row.review_count,
     image_urls_json: imageUrlsJson,
+    no_deposit_program: null, // Speedhome-only — see normalizeSpeedhome.ts
+    utilities_deposit_amount: null,
+    min_rental_duration_months: null,
     content_hash: contentHash,
     scraped_at: scrapedAt,
     crawl_type: row.crawl_type,

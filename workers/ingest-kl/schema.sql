@@ -1,6 +1,14 @@
 -- Kuala Lumpur deployment schema (KL PRD §6.4): mirrors the Jakarta listings
 -- table plus the KL-only columns. tenant_preference_raw is stored + displayed
 -- read-only and must never be added to any filter/searchable schema (ADR-0004).
+--
+-- One table serves every KL source (Mudah.my, Speedhome, ...) — `source`
+-- distinguishes rows, not a separate table per source (ADR-0001 is about
+-- country-level deployment separation, not per-source). listing_id is the
+-- sole PRIMARY KEY (no composite key with source), so every source's crawler
+-- is responsible for keeping its own ids from ever colliding with another
+-- source's — see src/types/klSpeedhomeListing.ts for how Speedhome does this
+-- (an id prefix) rather than this schema enforcing it.
 CREATE TABLE IF NOT EXISTS listings (
   listing_id              TEXT PRIMARY KEY,
   source                  TEXT NOT NULL DEFAULT 'mudah',
@@ -45,6 +53,14 @@ CREATE TABLE IF NOT EXISTS listings (
   deposit_terms_raw       TEXT,              -- e.g. "2 months deposit" (free text, often null)
   refund_conditions_raw   TEXT,              -- landlord-stated refund terms (usually null)
   tenant_preference_raw   TEXT,              -- e.g. "Female" / "Male, Female, Couple" — display-only, NEVER filterable
+
+  -- Speedhome-only fields (KL Speedhome PRD §5/§7; always NULL for source='mudah'
+  -- rows). Kept as separate columns rather than folded into deposit_amount or
+  -- price_period — see ADR-0005 and ADR-0006 for why each one is NOT the field
+  -- it superficially resembles.
+  no_deposit_program        INTEGER,         -- 0/1/null — Speedhome's "zero-deposit program" flag (ADR-0005: NOT the same claim as deposit_amount being 0)
+  utilities_deposit_amount  INTEGER,         -- a second, separate deposit figure (ADR-0005: not summed into deposit_amount)
+  min_rental_duration_months INTEGER,        -- minimum lease commitment in months (ADR-0006: NOT a price_period value)
 
 
   is_active               INTEGER NOT NULL DEFAULT 1,  -- 0/1 soft-delete/retirement flag

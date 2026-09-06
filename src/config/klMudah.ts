@@ -58,36 +58,8 @@ export const KL_MUDAH_SEEDS = [
 
 export type KlCityLabel = (typeof KL_MUDAH_SEEDS)[number]["cityLabel"];
 
-// Lowercased city names, matched as substrings against a listing's combined
-// location text (e.g. "Cheras, Kuala Lumpur", "Petaling Jaya, Selangor").
-// "ampang" is listed deliberately: Mudah.my labels Ampang Jaya listings as
-// plain "Ampang" (both a substring match for "Ampang Jaya" and the alias).
-const KLANG_VALLEY_CITY_MATCHES = [
-  "kuala lumpur",
-  "petaling jaya",
-  "ampang",
-  "subang jaya",
-  "shah alam",
-  "bangi",
-  "putrajaya",
-] as const;
-
-// KL PRD §7 scope guard: a listing's raw location text must reference one of
-// the 7 target cities, even if it surfaced from a city seed page (cross-promo
-// widgets, featured ads, etc. can pull out-of-scope listings — e.g. the PRD's
-// §7 note that Penang/Johor results appear on Malaysia-wide pages). Runs on the
-// combined "subarea, region" text, which is what Mudah.my renders both at card
-// level (initialStore locationLabel) and on the detail page (ad-location).
-//
-// Substring matching is intentionally lenient ("Bangi" matches "Bangi, Kedah"
-// too) — the per-city seed URLs are the primary scope constraint, so a false
-// positive here only matters for a cross-promoted out-of-region listing.
-// Tighten this if real false positives show up.
-export function isInKlangValleyScope(locationRaw: string | null | undefined): boolean {
-  if (!locationRaw) return false;
-  const normalized = locationRaw.trim().toLowerCase();
-  for (const match of KLANG_VALLEY_CITY_MATCHES) {
-    if (normalized.includes(match)) return true;
-  }
-  return false;
-}
+// The Klang Valley scope guard now lives in ./klangValley.ts — it stopped
+// being Mudah.my-specific the moment a second KL source (Speedhome) needed
+// the exact same 7-city check. Re-exported here so existing imports of
+// `isInKlangValleyScope` from this file keep working unchanged.
+export { isInKlangValleyScope } from "./klangValley.js";
