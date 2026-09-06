@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { KlListingRow } from "../types/klListing.js";
+import type { KlAnyListingRow } from "../types/klAnyListing.js";
 
 // HTTP sink for the Kuala Lumpur deployment — the parallel of src/lib/ingestClient.ts
 // (ADR-0002: parallel files per deployment). Same per-listing resilience
@@ -72,7 +72,7 @@ function appendDeadLetter(entries: Record<string, unknown>[]): void {
 // POSTs rows to /ingest. Never throws: on final failure each row is appended to
 // the dead-letter queue as one JSON line. A 200 with per-row status:"error" is
 // NOT dead-lettered — that's a normalization bug to investigate, not transient.
-export async function ingestRowsKl(rows: KlListingRow[]): Promise<void> {
+export async function ingestRowsKl(rows: KlAnyListingRow[]): Promise<void> {
   if (rows.length === 0) return;
   const config = ingestConfig();
   if (!config) return;
@@ -116,7 +116,7 @@ export async function retireListingKl(listingId: string): Promise<void> {
 
 interface DeadLetterEntry {
   kind: "ingest" | "retire";
-  row?: KlListingRow;
+  row?: KlAnyListingRow;
   listing_id?: string;
   failedAt?: string;
 }

@@ -1,6 +1,8 @@
 # PRD: Kuala Lumpur / Klang Valley — Mudah.my Scraper (Phase 1 of the KL expansion)
 
-Status: ready for implementation. This is source #1 of 5 in the KL build order agreed in [ADR-0001](adr/0001-separate-deployment-per-country.md) / [ADR-0002](adr/0002-same-repo-parallel-structure.md) (Mudah.my → Speedhome → Wetopia → Utopia → BeLive). This document only specifies Mudah.my; each later source gets its own PRD once its DOM/data has been confirmed the same way this one was.
+Status: ready for implementation. This is source #1 of the KL build order agreed in [ADR-0001](adr/0001-separate-deployment-per-country.md) / [ADR-0002](adr/0002-same-repo-parallel-structure.md) (Mudah.my → Speedhome → Wetopia → iBilik → Roomz.asia). This document only specifies Mudah.my; each later source gets its own PRD once its DOM/data has been confirmed the same way this one was.
+
+Utopia Co-living and BeLive, originally slots #4 and #5, were dropped after live verification: Utopia has no browsable listing catalog anywhere on its site (pure WhatsApp-concierge lead-gen, no prices/rooms/addresses to scrape), and BeLive's robots.txt explicitly disallows ClaudeBot by name (alongside GPTBot, CCBot, Google-Extended, and others) — the same stated AI-crawler opt-out that already excluded Komune Living from this list. Neither is a scoping judgment call; both are confirmed facts about the live sites.
 
 Cross-reference: the existing Jakarta/Mamikos PRD is cited throughout the codebase as "PRD §N" (see [src/config/jakarta.ts](../src/config/jakarta.ts), [src/config/politeness.ts](../src/config/politeness.ts)). This document uses the same "§N" convention so new code comments can cite it the same way, but it is a **separate PRD for a separate deployment** — not an amendment to the Jakarta one.
 
@@ -125,7 +127,7 @@ Reuse the existing patterns as-is — nothing about Mudah.my's site behavior con
 
 ## §9 — Explicitly out of scope for this PRD
 
-- Speedhome, Wetopia, Utopia Co-living, BeLive — separate PRDs once each source's DOM/data has been confirmed the same way this document confirms Mudah.my's.
+- Speedhome, Wetopia, iBilik, Roomz.asia — separate PRDs once each source's DOM/data has been confirmed the same way this document confirms Mudah.my's.
 - Singapore — deferred (see [ADR-0001](adr/0001-separate-deployment-per-country.md) context and the grilling session).
 - Cross-country search/unification.
 - Making `tenant_preference_raw` (or any race/religion-derived value) filterable anywhere in the product — permanently out of scope per [ADR-0004](adr/0004-tenant-preference-not-filterable.md), not just this phase.

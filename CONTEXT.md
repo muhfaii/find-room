@@ -13,7 +13,7 @@ A source site that aggregates listings from many independent third-party landlor
 _Avoid_: Aggregator
 
 **Operator Source**:
-A source site that only lists rooms in properties it manages itself (Wetopia, Utopia Co-living, BeLive). Small, curated catalogs; no third-party landlord concept.
+A source site that only lists rooms in properties it manages itself (Wetopia — the only confirmed one in the current KL build order). Small, curated catalogs; no third-party landlord concept. Not every co-living-branded site actually has a browsable catalog to scrape at all — see [[prd-kl-mudah]]'s note on why Utopia Co-living was dropped.
 _Avoid_: Co-living site (co-living is the property style; "operator source" is the crawling category)
 
 **Rental Term**:

@@ -1,8 +1,24 @@
 import { checkAuth } from "./auth.js";
 import { finalizeContentHash, retireListingKl, upsertListingKl } from "./db.js";
 import { buildEmbeddingTextKl, embedAndUpsertVector, type KlListingVectorMetadata } from "./embed.js";
-import { normalizeListingRowKl } from "./normalize.js";
-import type { KlListingRow } from "./types.js";
+import { normalizeListingRowKl, type KlNormalizedListing } from "./normalize.js";
+import { normalizeListingRowSpeedhome } from "./normalizeSpeedhome.js";
+import { normalizeListingRowWetopia } from "./normalizeWetopia.js";
+import { normalizeListingRowIbilik } from "./normalizeIbilik.js";
+import { normalizeListingRowRoomz } from "./normalizeRoomz.js";
+import type { KlAnyListingRow } from "./types.js";
+
+// Dispatches to the matching source's normalize function. Every KL source
+// lands in the same D1 table (see schema.sql's header comment) but each has
+// its own raw shape and its own normalize module — add a new arm here, never
+// widen any individual normalize function itself, when a new KL source is added.
+function normalizeRow(row: KlAnyListingRow): Promise<KlNormalizedListing> {
+  if (row.source === "speedhome") return normalizeListingRowSpeedhome(row);
+  if (row.source === "wetopia") return normalizeListingRowWetopia(row);
+  if (row.source === "ibilik") return normalizeListingRowIbilik(row);
+  if (row.source === "roomz") return normalizeListingRowRoomz(row);
+  return normalizeListingRowKl(row);
+}
 
 export interface Env {
   DB: D1Database;
@@ -39,13 +55,22 @@ async function handleIngest(request: Request, env: Env): Promise<Response> {
 
   const results: IngestResult[] = [];
   for (const raw of rows) {
-    const row = raw as Partial<KlListingRow>;
+    const row = raw as Partial<KlAnyListingRow>;
     const listingId = typeof row?.listing_id === "string" ? row.listing_id : "(unknown)";
     try {
       if (typeof raw !== "object" || raw === null) {
         throw new Error("row is not an object");
       }
-      const normalized = await normalizeListingRowKl(row as KlListingRow);
+      if (
+        row.source !== "mudah" &&
+        row.source !== "speedhome" &&
+        row.source !== "wetopia" &&
+        row.source !== "ibilik" &&
+        row.source !== "roomz"
+      ) {
+        throw new Error(`unknown row source: ${JSON.stringify((raw as { source?: unknown }).source)}`);
+      }
+      const normalized = await normalizeRow(row as KlAnyListingRow);
       const { contentChanged } = await upsertListingKl(env, normalized);
 
       let vectorUpdated = false;

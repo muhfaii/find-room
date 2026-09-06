@@ -6,7 +6,10 @@ import type { Env } from "./index.js";
 // refund_conditions_raw, tenant_preference_raw, the normalized room_type enum
 // (separate from room_type_raw, which both deployments already have), and
 // amenities_raw_json (the room-level Amenities section, kept separate from the
-// building-level facilities_raw_json per KL PRD §5).
+// building-level facilities_raw_json per KL PRD §5). no_deposit_program /
+// utilities_deposit_amount / min_rental_duration_months are Speedhome-only
+// (always null for source='mudah' rows) — see ADR-0005 / ADR-0006 for why
+// they're separate columns rather than folded into deposit_amount/price_period.
 const LISTING_COLUMNS_KL = [
   "listing_id",
   "source",
@@ -37,6 +40,9 @@ const LISTING_COLUMNS_KL = [
   "deposit_terms_raw",
   "refund_conditions_raw",
   "tenant_preference_raw",
+  "no_deposit_program",
+  "utilities_deposit_amount",
+  "min_rental_duration_months",
   "is_active",
   "content_hash",
   "first_ingested_at",
@@ -104,6 +110,9 @@ export async function upsertListingKl(
     normalized.deposit_terms_raw,
     normalized.refund_conditions_raw,
     normalized.tenant_preference_raw,
+    normalized.no_deposit_program === null ? null : normalized.no_deposit_program ? 1 : 0,
+    normalized.utilities_deposit_amount,
+    normalized.min_rental_duration_months,
     1, // is_active — a crawl hit means the listing is live again (re-activation)
     existing?.content_hash ?? null, // held back until finalizeContentHash() confirms the embed succeeded
     existing?.first_ingested_at ?? now, // preserved across re-ingests

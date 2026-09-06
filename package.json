@@ -8,6 +8,14 @@
     "detail-refresh": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefresh.ts",
     "discovery:kl": "tsx --env-file-if-exists=.env src/crawlers/runDiscoveryKl.ts",
     "detail-refresh:kl": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefreshKl.ts",
+    "discovery:kl-speedhome": "tsx --env-file-if-exists=.env src/crawlers/runDiscoverySpeedhomeKl.ts",
+    "detail-refresh:kl-speedhome": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefreshSpeedhomeKl.ts",
+    "discovery:kl-wetopia": "tsx --env-file-if-exists=.env src/crawlers/runDiscoveryWetopiaKl.ts",
+    "detail-refresh:kl-wetopia": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefreshWetopiaKl.ts",
+    "discovery:kl-ibilik": "tsx --env-file-if-exists=.env src/crawlers/runDiscoveryIbilikKl.ts",
+    "detail-refresh:kl-ibilik": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefreshIbilikKl.ts",
+    "discovery:kl-roomz": "tsx --env-file-if-exists=.env src/crawlers/runDiscoveryRoomzKl.ts",
+    "detail-refresh:kl-roomz": "tsx --env-file-if-exists=.env src/crawlers/runDetailRefreshRoomzKl.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

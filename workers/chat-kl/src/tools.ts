@@ -33,6 +33,12 @@ export interface ListingHit {
   image_urls: string[];
   facilities: string[];
   last_refreshed_at: string | null;
+  // Speedhome-only (always null for source='mudah' rows) — KL Speedhome PRD §7.
+  // Display-only in this pass, same as the rest of the deposit fields; not
+  // yet exposed as filter parameters in TOOL_FILTER_PROPERTIES below.
+  no_deposit_program: boolean | null;
+  utilities_deposit_amount: number | null;
+  min_rental_duration_months: number | null;
 }
 
 export interface ToolResult {
@@ -57,6 +63,10 @@ export const FACILITY_TAGS_KL = [
   "desk",
   "water_heater",
   "near_transit",
+  "water_included",
+  "electricity_included",
+  "queen_bed",
+  "single_bed",
 ] as const;
 
 export const ROOM_TYPES_KL = ["single", "master", "middle", "small"] as const;
@@ -66,7 +76,8 @@ const EMBEDDING_MODEL: string = "@cf/baai/bge-m3";
 const HIT_COLUMNS =
   "listing_id, title, price_amount, price_period, area_raw, city_raw, url, gender_restriction, " +
   "room_type, room_type_raw, deposit_amount, deposit_amount_raw, deposit_terms_raw, refund_conditions_raw, " +
-  "tenant_preference_raw, rating, review_count, image_urls_json, facilities_json, last_refreshed_at";
+  "tenant_preference_raw, rating, review_count, image_urls_json, facilities_json, last_refreshed_at, " +
+  "no_deposit_program, utilities_deposit_amount, min_rental_duration_months";
 
 type D1Row = Record<string, unknown>;
 
@@ -118,6 +129,10 @@ function rowToHit(row: D1Row): ListingHit {
     image_urls: imageUrls,
     facilities: parseFacilities(row.facilities_json),
     last_refreshed_at: typeof row.last_refreshed_at === "string" ? row.last_refreshed_at : null,
+    no_deposit_program: typeof row.no_deposit_program === "number" ? row.no_deposit_program === 1 : null,
+    utilities_deposit_amount: typeof row.utilities_deposit_amount === "number" ? row.utilities_deposit_amount : null,
+    min_rental_duration_months:
+      typeof row.min_rental_duration_months === "number" ? row.min_rental_duration_months : null,
   };
 }
 
