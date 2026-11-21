@@ -32,8 +32,14 @@ name = "CHAT_RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 20, period = 60 }
 
-# Secrets (set via `wrangler secret put OPENAI_API_KEY`, NOT committed):
-#   OPENAI_API_KEY
+# LLM provider: any OpenAI-compatible /chat/completions endpoint that supports
+# tool calling. Currently Vikey (a gateway; model ids are "provider/name").
+[vars]
+LLM_BASE_URL = "https://api.vikey.ai/v1"
+LLM_MODEL = "openai/gpt-6-luna"
+
+# Secrets (set via `wrangler secret put LLM_API_KEY`, NOT committed):
+#   LLM_API_KEY   (the key for LLM_BASE_URL's provider — NOT an OpenAI key)
 
 [[routes]]
 pattern = "habitat.byopre.com"

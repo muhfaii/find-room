@@ -4,7 +4,9 @@ export interface Env {
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   AI: Ai;
-  OPENAI_API_KEY: string;
+  LLM_API_KEY: string;
+  LLM_BASE_URL: string;
+  LLM_MODEL: string;
   CHAT_SESSION: DurableObjectNamespace;
   CHAT_RATE_LIMITER: RateLimit;
   ASSETS: Fetcher;
