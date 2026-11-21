@@ -12,6 +12,7 @@ export interface Env {
 
 export { ChatSession };
 
+const MAX_MESSAGE_LENGTH = 2000;
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 function json(body: unknown, status = 200): Response {
@@ -39,6 +40,11 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   if (typeof message !== "string" || message.length === 0) {
     return json({ error: "missing required field: message" }, 400);
   }
+  // Every character is paid OpenAI input tokens, re-sent on every later turn
+  // as history — cap it so one request can't run up an outsized bill.
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return json({ error: "message_too_long" }, 413);
+  }
 
   const sessionId =
     typeof body?.session_id === "string" && body.session_id.length > 0 ? body.session_id : crypto.randomUUID();
@@ -59,7 +65,7 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   } catch (err) {
     console.error("[chat-kl] session dispatch failed", err);
     return json(
-      { session_id: sessionId, reply: "Maaf, ada gangguan teknikal. Sila cuba lagi sebentar ya.", listings: [] },
+      { session_id: sessionId, reply: "Maaf, ada gangguan teknikal. Sila cuba lagi sebentar ya.", listings: [], error: "chat_failed" },
       200,
     );
   }

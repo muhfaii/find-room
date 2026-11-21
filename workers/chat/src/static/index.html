@@ -1257,6 +1257,10 @@
           }
           input.value = "";
           addBubble(data.reply || "", "assistant");
+          // A backend failure also returns listings: [] — don't present that
+          // as "no kost matched your criteria", which sends the user off to
+          // loosen filters that were never actually searched.
+          if (data.error) return;
           if (Array.isArray(data.listings)) {
             if (data.listings.length > 0) addListings(data.listings);
             else addEmptyState(data.filters);

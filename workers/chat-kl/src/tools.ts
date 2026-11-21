@@ -286,6 +286,12 @@ function buildFilterConditions(args: Record<string, unknown>): { conditions: str
     conditions.push("price_amount <= ?");
     params.push(priceMax);
   }
+  // Budgets are monthly, but price_amount can be a daily/weekly/yearly figure
+  // (e.g. "Rp150.000 /hari") — comparing those raw would let a daily-priced
+  // listing pass any monthly budget. Unknown periods (null) are kept.
+  if (priceMin !== null || priceMax !== null) {
+    conditions.push("(price_period = 'monthly' OR price_period IS NULL)");
+  }
 
   const area = asString(args.area);
   if (area) {
