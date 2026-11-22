@@ -1,4 +1,5 @@
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 // PRD §8: run-level summary log — pages attempted/succeeded/failed/skipped, total
 // runtime. Per-listing failures log listing_id/url and are skipped, never abort
@@ -13,6 +14,9 @@ export class RunLogger {
 
   constructor(logPath: string, private crawlType: string) {
     this.path = logPath;
+    // data/logs is gitignored, so it doesn't exist on a fresh clone — without
+    // this the first write throws ENOENT (and hides the real abort reason).
+    mkdirSync(dirname(logPath), { recursive: true });
     this.startedAt = Date.now();
   }
 

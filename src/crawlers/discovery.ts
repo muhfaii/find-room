@@ -1,4 +1,4 @@
-import type { Page } from "playwright";
+import type { Locator, Page } from "playwright";
 import { JAKARTA_SEEDS, isInJakartaScope } from "../config/jakarta.js";
 import { politeWait } from "../config/politeness.js";
 import { KnownListingsStore } from "../lib/knownListings.js";
@@ -50,20 +50,63 @@ async function extractCardsFromPage(page: Page): Promise<DiscoveredCard[]> {
   });
 }
 
+// Clicks an element that an overlay (ad slot, cookie banner, toast, ...) may be
+// covering. Playwright's normal click refuses to act when another element would
+// receive the pointer event ("<html> intercepts pointer events"), so escalate:
+//   1. normal click (short timeout — a transient overlay often clears quickly)
+//   2. force click: skips the actionability/hit-target checks and dispatches the
+//      mouse event at the element's position
+//   3. DOM click(): invokes the element's click handler directly, so it works even
+//      if the overlay is still physically on top
+// Used for the "load more" button only. Card clicks must stay real clicks since
+// they open the listing in a new tab, which a synthetic click may not do.
+async function clickThroughOverlay(button: Locator, log: RunLogger): Promise<void> {
+  try {
+    await button.click({ timeout: 5_000 });
+    return;
+  } catch {
+    // fall through to the forced variants
+  }
+  await button.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {});
+  try {
+    await button.click({ force: true, timeout: 5_000 });
+    log.info("pagination: normal click blocked by an overlay, force click worked");
+    return;
+  } catch {
+    // fall through to the DOM click
+  }
+  await button.evaluate((el) => (el as HTMLElement).click(), undefined, { timeout: 5_000 });
+  log.info("pagination: force click failed too, DOM click used");
+}
+
 async function loadAllCards(page: Page, log: RunLogger): Promise<DiscoveredCard[]> {
   let previousCount = -1;
   let cards = await extractCardsFromPage(page);
+  let stopReason = "no new cards after the last click";
+  let clicks = 0;
 
   while (cards.length > previousCount) {
     previousCount = cards.length;
     const seeMore = page.locator("button.nominatim-list__see-more");
-    if ((await seeMore.count()) === 0) break;
+    if ((await seeMore.count()) === 0) {
+      stopReason = "no load-more button on the page";
+      break;
+    }
     await politeWait();
-    await clickWithRetry(() => seeMore.click());
+    try {
+      await clickWithRetry(() => clickThroughOverlay(seeMore.first(), log));
+    } catch (err) {
+      stopReason = `load-more click failed: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`;
+      break;
+    }
+    clicks += 1;
     await page.waitForTimeout(1500); // let newly appended cards render
     cards = await extractCardsFromPage(page);
   }
 
+  // The stop reason makes it visible whether a short list means the site really
+  // has few cards, the button selector no longer matches, or clicks were blocked.
+  log.info(`Pagination stopped after ${clicks} click(s): ${stopReason}`);
   log.info(`Loaded ${cards.length} cards after full pagination`);
   return cards;
 }
