@@ -21,38 +21,27 @@ function describeListApi(body: string): void {
   try {
     json = JSON.parse(body);
   } catch {
-    return console.log("  (list response is not valid JSON)");
+    return console.log(`  (not valid JSON; starts with: ${JSON.stringify(body.slice(0, 80))})`);
   }
-  // Depth-first search for the first array of objects.
-  let found: { path: string; items: Record<string, unknown>[] } | null = null;
-  const walk = (node: unknown, path: string, depth: number): void => {
-    if (found || depth > 4 || node === null || typeof node !== "object") return;
-    if (Array.isArray(node)) {
-      if (node.length > 0 && typeof node[0] === "object" && node[0] !== null && !Array.isArray(node[0])) {
-        found = { path, items: node as Record<string, unknown>[] };
-        return;
-      }
-      return;
-    }
-    for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k, depth + 1);
-  };
-  walk(json, "", 0);
-  if (!found) return console.log("  (no array of objects found)");
-  const { path, items } = found as { path: string; items: Record<string, unknown>[] };
-  console.log(`  array at "${path}" with ${items.length} items; first item fields:`);
   const lines: string[] = [];
-  const flat = (node: unknown, prefix: string, depth: number): void => {
-    if (lines.length >= 90) return;
-    if (node !== null && typeof node === "object" && !Array.isArray(node) && depth < 2) {
-      for (const [k, v] of Object.entries(node)) flat(v, `${prefix}.${k}`, depth + 1);
+  const walk = (node: unknown, path: string, depth: number): void => {
+    if (lines.length >= 70) return;
+    if (Array.isArray(node)) {
+      lines.push(`${path}: array(${node.length})`);
+      if (node.length > 0 && depth < 5) walk(node[0], `${path}[0]`, depth + 1);
       return;
     }
+    if (node !== null && typeof node === "object") {
+      lines.push(`${path}: object`);
+      if (depth < 5) for (const [k, v] of Object.entries(node)) walk(v, `${path}.${k}`, depth + 1);
+      return;
+    }
+    // Values are shown only for URL/slug-like strings; everything else is type only.
     const isLink = typeof node === "string" && /kost-|\/room|^https?:\/\//i.test(node);
-    const shown = isLink ? JSON.stringify((node as string).slice(0, 110)) : Array.isArray(node) ? `array(${node.length})` : typeof node;
-    lines.push(`    ${prefix.slice(1)}: ${shown}`);
+    lines.push(`${path}: ${isLink ? JSON.stringify((node as string).slice(0, 110)) : typeof node}`);
   };
-  flat(items[0], "", 0);
-  for (const line of lines) console.log(line);
+  walk(json, "$", 0);
+  for (const line of lines) console.log("  " + line);
 }
 
 async function main() {
@@ -107,44 +96,74 @@ async function main() {
     console.log("  " + info);
   }
 
-  console.log("\n== structure of the page's own list API (/garuda/stories/list)");
+  console.log("\n== shape of the page's own list API (/garuda/stories/list), keys and types only");
   describeListApi(listBody);
 
-  // Why is card #2 not clickable?
+  console.log("\n== component tree behind card #2 (props/data keys; link-like values only)");
+  const tree = await cards.nth(2).evaluate((el) => {
+    const anyEl = el as unknown as Record<string, any>;
+    const out: string[] = [];
+    const isV2 = Boolean(anyEl.__vue__);
+    let vm: any = anyEl.__vue__ ?? anyEl.__vueParentComponent ?? null;
+    out.push(isV2 ? "vue 2" : vm ? "vue 3" : "no vue instance");
+    for (let depth = 0; vm && depth < 8; depth++) {
+      const data: Record<string, any> = isV2 ? vm.$data ?? {} : { ...(vm.setupState ?? {}), ...(vm.data ?? {}) };
+      const props: Record<string, any> = (isV2 ? vm.$props : vm.props) ?? {};
+      out.push(`level ${depth}: props=[${Object.keys(props).join(",")}] data=[${Object.keys(data).join(",")}]`);
+      out.push(
+        "  id/link-like props: " +
+          Object.entries(props)
+            .filter(([k]) => /slug|url|link|share|room_?id|^id$/i.test(k))
+            .map(([k, x]) => k + "=" + String(x).slice(0, 100))
+            .join(" ")
+      );
+      for (const [k, v] of Object.entries(data)) {
+        if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null) {
+          out.push(
+            `  data.${k}: array(${v.length}) item keys: ${Object.keys(v[0]).slice(0, 45).join(",")} | link-like: ` +
+              Object.entries(v[0])
+                .filter(([, x]) => typeof x === "string" && /kost-|\/room/i.test(x))
+                .map(([kk, x]) => kk + "=" + String(x).slice(0, 110))
+                .join(" ")
+          );
+        }
+      }
+      vm = isV2 ? vm.$parent : vm.parent;
+    }
+    return out.join("\n");
+  });
+  console.log(tree.split("\n").map((l) => "  " + l).join("\n"));
+
+  // Why is card #2 not clickable? (run before AND after a listing tab was opened)
   const target = cards.nth(2);
   await target.scrollIntoViewIfNeeded();
   await page.waitForTimeout(800);
-  console.log("\n== card #2 hit-test after scrolling into view");
-  console.log(
-    "  " +
-      (await target.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        const x = r.left + r.width / 2;
-        const y = r.top + r.height / 2;
-        const stack = document
-          .elementsFromPoint(x, y)
-          .slice(0, 6)
-          .map((n) => n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + "." + String(n.className).slice(0, 50));
-        let scroller = "none";
-        for (let p = el.parentElement; p; p = p.parentElement) {
-          const o = getComputedStyle(p).overflowY;
-          if ((o === "auto" || o === "scroll") && p.scrollHeight > p.clientHeight) {
-            scroller = p.tagName.toLowerCase() + "." + String(p.className).slice(0, 50);
-            break;
-          }
-        }
-        return JSON.stringify({
-          rect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
-          viewport: [innerWidth, innerHeight],
-          stackAtPoint: stack,
-          scrollContainer: scroller,
-          bodyPointerEvents: getComputedStyle(document.body).pointerEvents,
-          htmlOverflow: getComputedStyle(document.documentElement).overflow,
-          bodyOverflow: getComputedStyle(document.body).overflow,
-          bodyStyleAttr: document.body.getAttribute("style"),
-        });
-      }))
-  );
+  const hitTest = async (label: string): Promise<void> => {
+    console.log(`\n== card #2 hit-test ${label}`);
+    console.log(
+      "  " +
+        (await target
+          .evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            const stack = document
+              .elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+              .slice(0, 5)
+              .map((n) => n.tagName.toLowerCase() + "." + String(n.className).slice(0, 40));
+            return JSON.stringify({
+              rect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+              stackAtPoint: stack,
+              visibility: document.visibilityState,
+              hasFocus: document.hasFocus(),
+              bodyPointerEvents: getComputedStyle(document.body).pointerEvents,
+              bodyStyleAttr: document.body.getAttribute("style"),
+              bodyChildren: document.body.children.length,
+              scrollY: Math.round(scrollY),
+            });
+          })
+          .catch((err) => "evaluate failed: " + String(err.message).split("\n")[0]))
+    );
+  };
+  await hitTest("before any click");
 
   // Which click method actually opens a tab?
   const tryMethod = async (label: string, action: () => Promise<unknown>) => {
@@ -162,6 +181,8 @@ async function main() {
   };
   console.log("\n== click methods on card #2");
   await tryMethod("normal click (3s)", () => target.click({ timeout: 3000 }));
+  await page.waitForTimeout(1500);
+  await hitTest("AFTER the first listing tab was opened and closed");
   await tryMethod("DOM click", () => target.evaluate((el) => (el as HTMLElement).click()));
   await tryMethod("force click", () => target.click({ force: true, timeout: 3000 }));
   const box = await target.boundingBox();
