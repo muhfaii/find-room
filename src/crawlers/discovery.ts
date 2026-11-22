@@ -78,7 +78,19 @@ async function describeBlocker(target: Locator): Promise<string> {
         `hasFocus=${document.hasFocus()}`,
       ].join(" ");
     }, undefined, { timeout: 3_000 })
-    .catch(() => "blocker details unavailable");
+    .catch((err) => `blocker details unavailable (${String(err?.message ?? err).split("\n")[0]})`);
+}
+
+// The card's own markup, to see whether it carries a link/slug we could read
+// without clicking. Logged only a couple of times per run to keep the log small.
+let cardMarkupLogged = 0;
+async function logCardMarkup(card: Locator, log: RunLogger): Promise<void> {
+  if (cardMarkupLogged >= 2) return;
+  cardMarkupLogged += 1;
+  const html = await card
+    .evaluate((el) => el.outerHTML.replace(/\s+/g, " ").slice(0, 900), undefined, { timeout: 3_000 })
+    .catch(() => "unavailable");
+  log.info(`card markup: ${html}`);
 }
 
 async function clickThroughOverlay(button: Locator, log: RunLogger, label = "pagination"): Promise<void> {
@@ -89,15 +101,55 @@ async function clickThroughOverlay(button: Locator, log: RunLogger, label = "pag
     log.info(`${label}: normal click blocked — ${await describeBlocker(button)}`);
   }
   await button.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {});
-  try {
-    await button.click({ force: true, timeout: 5_000 });
-    log.info(`${label}: force click worked`);
-    return;
-  } catch {
-    // fall through to the DOM click
-  }
+  // DOM click before force click: a force click reports success even when the
+  // pointer lands on whatever covers the button (the click is "sent", just not to
+  // the button), while a DOM click invokes the button's own handler.
   await button.evaluate((el) => (el as HTMLElement).click(), undefined, { timeout: 5_000 });
-  log.info(`${label}: force click failed too, DOM click used`);
+  log.info(`${label}: DOM click used`);
+}
+
+// Opens a listing card in its new tab and returns that tab, or null if nothing
+// opened. The click only counts if a tab appears, so each method is followed by a
+// check — "click did not throw" is not evidence the card received it:
+//   1. normal click (fails when something covers the card)
+//   2. DOM click on the card element
+//   3. force click at the card's position
+async function openCardTab(page: Page, card: Locator, log: RunLogger): Promise<Page | null> {
+  const attempt = async (action: () => Promise<void>): Promise<Page | null> => {
+    const tab = page.context().waitForEvent("page", { timeout: 8_000 }).catch(() => null);
+    try {
+      await action();
+    } catch (err) {
+      log.info(`card click: method failed — ${String(err instanceof Error ? err.message : err).split("\n")[0]}`);
+      return null;
+    }
+    return tab;
+  };
+
+  let normalClickThrew = false;
+  const viaNormal = await attempt(async () => {
+    try {
+      await card.click({ timeout: 5_000 });
+    } catch (err) {
+      normalClickThrew = true;
+      throw err;
+    }
+  });
+  if (viaNormal) return viaNormal;
+  // The click went through but no tab opened: report that, don't double-click.
+  if (!normalClickThrew) return null;
+
+  log.info(`card click: normal click blocked — ${await describeBlocker(card)}`);
+  await logCardMarkup(card, log);
+
+  const viaDom = await attempt(() => card.evaluate((el) => (el as HTMLElement).click(), undefined, { timeout: 5_000 }));
+  if (viaDom) {
+    log.info("card click: DOM click opened the tab");
+    return viaDom;
+  }
+  const viaForce = await attempt(() => card.click({ force: true, timeout: 5_000 }));
+  if (viaForce) log.info("card click: force click opened the tab");
+  return viaForce;
 }
 
 const MAX_CONSECUTIVE_CLICK_FAILURES = 3;
@@ -221,30 +273,21 @@ async function runSeedDiscovery(
       // A background tab can leave the list page un-clickable after a listing tab
       // was opened and closed, so always bring it back to the front first.
       await page.bringToFront().catch(() => {});
-      const newPagePromise = page.context().waitForEvent("page", { timeout: 10000 }).catch(() => null);
-      try {
-        await clickWithRetry(() => clickThroughOverlay(cardLocator, log, "card click"), 2, 1000);
-      } catch (err) {
-        // One stuck card must not abandon the whole city (it used to: this click
-        // sat outside any try/catch). Skip the card, but give up on the city after
-        // a few failures in a row since the page itself is likely wedged.
-        const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
-        log.failure("(unknown)", seed.seedUrl, `card_click_failed signature=${signature} ${reason}`);
+      const newPage = await openCardTab(page, cardLocator, log);
+      clickBudget.recordClick();
+
+      if (!newPage) {
+        // One stuck card must not abandon the whole city. Skip it, but give up on
+        // the city after a few in a row since the page itself is likely wedged.
+        log.failure("(unknown)", seed.seedUrl, `click_did_not_open_tab signature=${signature}`);
         consecutiveClickFailures += 1;
         if (consecutiveClickFailures >= MAX_CONSECUTIVE_CLICK_FAILURES) {
           throw new Error(`gave up on ${seed.cityLabel} after ${consecutiveClickFailures} card clicks in a row failed`);
         }
-        continue;
-      }
-      const newPage = await newPagePromise;
-      clickBudget.recordClick();
-      if (newPage) consecutiveClickFailures = 0;
-
-      if (!newPage) {
-        log.failure("(unknown)", "(unknown)", `click_did_not_open_tab signature=${signature}`);
         await politeWait();
         continue;
       }
+      consecutiveClickFailures = 0;
 
       try {
         await newPage.waitForLoadState("domcontentloaded");
