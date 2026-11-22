@@ -14,6 +14,9 @@ interface DiscoveredCard {
   areaRaw: string | null;
   priceRawText: string;
   availabilityStatusRaw: string | null;
+  // Listing URL read from the page's own data (see extractCardUrls); null when it
+  // could not be found, in which case the card is clicked to learn it.
+  url?: string | null;
 }
 
 // PRD §4: discovery visits only the 5 fixed Jakarta seed URLs (bulanan/monthly
@@ -155,6 +158,60 @@ async function openCardTab(page: Page, card: Locator, log: RunLogger): Promise<P
   return viaForce;
 }
 
+// Listing cards have no <a href>, but each card is a Vue component, and the list
+// component above it holds the full room objects the page was rendered from
+// (`nominatimRooms`), each with a `share_url` — the same URL a card click opens.
+// Reading it avoids clicking: clicking only worked for the first couple of cards
+// before the list page stopped opening tabs.
+//
+// Cards are matched to rooms by roomId (card prop) == room._id, falling back to
+// list position (cards are rendered in list order, data-rank 1..n). NOTE: the
+// page-side callback must use only inline anonymous lambdas — tsx/esbuild injects
+// a `__name` helper for named functions/const-arrows, which does not exist in the
+// browser page.
+async function extractCardUrls(page: Page): Promise<{ url: string | null; matchedBy: string }[]> {
+  return page
+    .evaluate((selector) => {
+      const els = Array.from(document.querySelectorAll(selector));
+      let vm: any = (els[0] as any)?.__vue__ ?? null;
+      let rooms: any[] = [];
+      for (let depth = 0; vm && depth < 10; depth++) {
+        const found = vm.$data?.nominatimRooms;
+        if (Array.isArray(found)) {
+          rooms = found;
+          break;
+        }
+        vm = vm.$parent;
+      }
+      return els.map((el, index) => {
+        const roomId = (el as any).__vue__?.$props?.roomId;
+        const byId = roomId == null ? undefined : rooms.find((r) => String(r._id) === String(roomId));
+        const room = byId ?? rooms[index];
+        const shareUrl = room && typeof room.share_url === "string" ? room.share_url : null;
+        return { url: shareUrl, matchedBy: byId ? "id" : room ? "position" : "none" };
+      });
+    }, '[data-testid="nominatimRoomCard"]')
+    .catch(() => []);
+}
+
+// Opens a listing's detail page directly in a new tab, returning the tab or null.
+// Only mamikos.com room URLs are accepted, since the value comes from page data.
+async function openListingDirect(page: Page, url: string, log: RunLogger): Promise<Page | null> {
+  if (!/^https:\/\/mamikos\.com\/room\//.test(url)) {
+    log.info(`unexpected listing url from page data, ignoring: ${url.slice(0, 80)}`);
+    return null;
+  }
+  const tab = await page.context().newPage();
+  try {
+    await tab.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    return tab;
+  } catch (err) {
+    log.info(`listing page failed to load: ${String(err instanceof Error ? err.message : err).split("\n")[0]}`);
+    await tab.close().catch(() => {});
+    return null;
+  }
+}
+
 const MAX_CONSECUTIVE_CLICK_FAILURES = 3;
 
 async function loadAllCards(page: Page, log: RunLogger): Promise<DiscoveredCard[]> {
@@ -186,6 +243,12 @@ async function loadAllCards(page: Page, log: RunLogger): Promise<DiscoveredCard[
   // has few cards, the button selector no longer matches, or clicks were blocked.
   log.info(`Pagination stopped after ${clicks} click(s): ${stopReason}`);
   log.info(`Loaded ${cards.length} cards after full pagination`);
+
+  const urls = await extractCardUrls(page);
+  if (urls.length === cards.length) cards.forEach((card, i) => (card.url = urls[i].url));
+  const withUrl = cards.filter((c) => c.url).length;
+  const byId = urls.filter((u) => u.url && u.matchedBy === "id").length;
+  log.info(`Listing URLs read from page data: ${withUrl}/${cards.length} (matched by id: ${byId}, by position: ${withUrl - byId})`);
   return cards;
 }
 
@@ -272,17 +335,23 @@ async function runSeedDiscovery(
         continue;
       }
 
-      const cardLocator = page.locator('[data-testid="nominatimRoomCard"]').nth(cards.indexOf(card));
-      // A background tab can leave the list page un-clickable after a listing tab
-      // was opened and closed, so always bring it back to the front first.
-      await page.bringToFront().catch(() => {});
-      const newPage = await openCardTab(page, cardLocator, log);
+      let newPage: Page | null;
+      if (card.url) {
+        newPage = await openListingDirect(page, card.url, log);
+      } else {
+        // No URL in the page data for this card — fall back to clicking it. A
+        // background tab can leave the list page un-clickable after a listing tab
+        // was opened and closed, so bring it back to the front first.
+        const cardLocator = page.locator('[data-testid="nominatimRoomCard"]').nth(cards.indexOf(card));
+        await page.bringToFront().catch(() => {});
+        newPage = await openCardTab(page, cardLocator, log);
+      }
       clickBudget.recordClick();
 
       if (!newPage) {
         // One stuck card must not abandon the whole city. Skip it, but give up on
         // the city after a few in a row since the page itself is likely wedged.
-        log.failure("(unknown)", seed.seedUrl, `click_did_not_open_tab signature=${signature}`);
+        log.failure("(unknown)", seed.seedUrl, `listing_tab_not_opened signature=${signature}`);
         consecutiveClickFailures += 1;
         if (consecutiveClickFailures >= MAX_CONSECUTIVE_CLICK_FAILURES) {
           throw new Error(`gave up on ${seed.cityLabel} after ${consecutiveClickFailures} card clicks in a row failed`);
