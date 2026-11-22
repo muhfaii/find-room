@@ -58,26 +58,49 @@ async function extractCardsFromPage(page: Page): Promise<DiscoveredCard[]> {
 //      mouse event at the element's position
 //   3. DOM click(): invokes the element's click handler directly, so it works even
 //      if the overlay is still physically on top
-// Used for the "load more" button only. Card clicks must stay real clicks since
-// they open the listing in a new tab, which a synthetic click may not do.
-async function clickThroughOverlay(button: Locator, log: RunLogger): Promise<void> {
+// Also used for listing cards. The DOM-click fallback runs through Playwright's
+// evaluate (which carries user activation), so a card handler's window.open can
+// still open the listing tab; if it does not, the caller logs click_did_not_open_tab.
+async function describeBlocker(target: Locator): Promise<string> {
+  // What is actually under the pointer where the target sits, plus page/tab state
+  // that commonly leaves a page un-clickable (scroll-lock classes, background tab).
+  return target
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const d = (n: Element | null) =>
+        n ? `${n.tagName.toLowerCase()}#${n.id}.${String(n.className).slice(0, 60)}` : "null";
+      return [
+        `topElement=${d(top)}`,
+        `html.class="${document.documentElement.className.slice(0, 60)}"`,
+        `body.style="${(document.body.getAttribute("style") ?? "").slice(0, 80)}"`,
+        `visibility=${document.visibilityState}`,
+        `hasFocus=${document.hasFocus()}`,
+      ].join(" ");
+    }, undefined, { timeout: 3_000 })
+    .catch(() => "blocker details unavailable");
+}
+
+async function clickThroughOverlay(button: Locator, log: RunLogger, label = "pagination"): Promise<void> {
   try {
     await button.click({ timeout: 5_000 });
     return;
   } catch {
-    // fall through to the forced variants
+    log.info(`${label}: normal click blocked — ${await describeBlocker(button)}`);
   }
   await button.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {});
   try {
     await button.click({ force: true, timeout: 5_000 });
-    log.info("pagination: normal click blocked by an overlay, force click worked");
+    log.info(`${label}: force click worked`);
     return;
   } catch {
     // fall through to the DOM click
   }
   await button.evaluate((el) => (el as HTMLElement).click(), undefined, { timeout: 5_000 });
-  log.info("pagination: force click failed too, DOM click used");
+  log.info(`${label}: force click failed too, DOM click used`);
 }
+
+const MAX_CONSECUTIVE_CLICK_FAILURES = 3;
 
 async function loadAllCards(page: Page, log: RunLogger): Promise<DiscoveredCard[]> {
   let previousCount = -1;
@@ -148,6 +171,7 @@ async function runSeedDiscovery(
   await page.waitForFunction(() => document.body.innerText.includes("Rp"), { timeout: 20000 });
 
   const cards = await loadAllCards(page, log);
+  let consecutiveClickFailures = 0;
 
   for (const card of cards) {
       const now = new Date().toISOString();
@@ -194,10 +218,27 @@ async function runSeedDiscovery(
       }
 
       const cardLocator = page.locator('[data-testid="nominatimRoomCard"]').nth(cards.indexOf(card));
+      // A background tab can leave the list page un-clickable after a listing tab
+      // was opened and closed, so always bring it back to the front first.
+      await page.bringToFront().catch(() => {});
       const newPagePromise = page.context().waitForEvent("page", { timeout: 10000 }).catch(() => null);
-      await clickWithRetry(() => cardLocator.click());
+      try {
+        await clickWithRetry(() => clickThroughOverlay(cardLocator, log, "card click"), 2, 1000);
+      } catch (err) {
+        // One stuck card must not abandon the whole city (it used to: this click
+        // sat outside any try/catch). Skip the card, but give up on the city after
+        // a few failures in a row since the page itself is likely wedged.
+        const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
+        log.failure("(unknown)", seed.seedUrl, `card_click_failed signature=${signature} ${reason}`);
+        consecutiveClickFailures += 1;
+        if (consecutiveClickFailures >= MAX_CONSECUTIVE_CLICK_FAILURES) {
+          throw new Error(`gave up on ${seed.cityLabel} after ${consecutiveClickFailures} card clicks in a row failed`);
+        }
+        continue;
+      }
       const newPage = await newPagePromise;
       clickBudget.recordClick();
+      if (newPage) consecutiveClickFailures = 0;
 
       if (!newPage) {
         log.failure("(unknown)", "(unknown)", `click_did_not_open_tab signature=${signature}`);
@@ -253,6 +294,7 @@ async function runSeedDiscovery(
         log.failure("(unknown)", newPage.url(), reason);
       } finally {
         await newPage.close();
+        await page.bringToFront().catch(() => {});
       }
 
       await politeWait();
