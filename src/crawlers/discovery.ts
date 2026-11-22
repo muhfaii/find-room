@@ -64,20 +64,24 @@ async function extractCardsFromPage(page: Page): Promise<DiscoveredCard[]> {
 async function describeBlocker(target: Locator): Promise<string> {
   // What is actually under the pointer where the target sits, plus page/tab state
   // that commonly leaves a page un-clickable (scroll-lock classes, background tab).
+  // The page-side code is a STRING on purpose: tsx/esbuild injects a `__name`
+  // helper into function literals, which does not exist inside the browser page.
   return target
-    .evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      const d = (n: Element | null) =>
-        n ? `${n.tagName.toLowerCase()}#${n.id}.${String(n.className).slice(0, 60)}` : "null";
-      return [
-        `topElement=${d(top)}`,
-        `html.class="${document.documentElement.className.slice(0, 60)}"`,
-        `body.style="${(document.body.getAttribute("style") ?? "").slice(0, 80)}"`,
-        `visibility=${document.visibilityState}`,
-        `hasFocus=${document.hasFocus()}`,
-      ].join(" ");
-    }, undefined, { timeout: 3_000 })
+    .evaluate(
+      `el => {
+        const r = el.getBoundingClientRect();
+        const stack = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2).slice(0, 4)
+          .map(n => n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + '.' + String(n.className).slice(0, 50));
+        return 'stackAtPoint=[' + stack.join(' > ') + ']'
+          + ' html.class="' + document.documentElement.className.slice(0, 60) + '"'
+          + ' body.style="' + (document.body.getAttribute('style') || '').slice(0, 80) + '"'
+          + ' bodyPointerEvents=' + getComputedStyle(document.body).pointerEvents
+          + ' visibility=' + document.visibilityState + ' hasFocus=' + document.hasFocus();
+      }`,
+      undefined,
+      { timeout: 3_000 },
+    )
+    .then((v) => String(v))
     .catch((err) => `blocker details unavailable (${String(err?.message ?? err).split("\n")[0]})`);
 }
 
