@@ -1,9 +1,10 @@
 import type { Env } from "./index.js";
 
-// Minimal OpenAI chat-completions client via direct fetch — no SDK dependency,
-// keeps the bundle small. Model is a config constant so it's easy to swap later.
-
-export const OPENAI_MODEL = "gpt-5.6-luna";
+// Minimal OpenAI-compatible chat-completions client via direct fetch — no SDK
+// dependency, keeps the bundle small. The provider is configuration, not code:
+// LLM_BASE_URL and LLM_MODEL come from [vars] in wrangler.toml and LLM_API_KEY
+// is a secret, so switching vendor/model is a config change (no code edit).
+// The provider must support OpenAI-format tool calling (tools / tool_calls).
 
 export interface ChatToolCall {
   id: string;
@@ -28,7 +29,6 @@ export interface ChatCompletionResponse {
   choices: ChatCompletionChoice[];
 }
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MAX_ATTEMPTS = 3;
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 
@@ -49,14 +49,14 @@ export async function chatCompletion(
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const res = await fetch(OPENAI_URL, {
+      const res = await fetch(`${env.LLM_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${env.LLM_API_KEY}`,
         },
         body: JSON.stringify({
-          model: OPENAI_MODEL,
+          model: env.LLM_MODEL,
           messages,
           tools,
           tool_choice: "auto",
@@ -65,7 +65,7 @@ export async function chatCompletion(
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        const message = `OpenAI API responded ${res.status}: ${body}`;
+        const message = `LLM API responded ${res.status}: ${body}`;
         throw RETRYABLE_STATUS.has(res.status) ? new Error(message) : new NonRetryableOpenAIError(message);
       }
 
